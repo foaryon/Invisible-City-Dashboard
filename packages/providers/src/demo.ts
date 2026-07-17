@@ -12,8 +12,14 @@ import {
   type ModuleEnvelope,
   type Coordinates,
   type AirModelContext,
+  type EmitterContext,
 } from '@invisible-city/contracts';
-import { DEMO_BANNER_TEXT, makeEvidence, distanceMeters } from '@invisible-city/evidence';
+import {
+  DEMO_BANNER_TEXT,
+  makeEvidence,
+  distanceMeters,
+  formatDistanceGerman,
+} from '@invisible-city/evidence';
 import { getProvider } from './manifest.js';
 import {
   brightskyWeatherFixture,
@@ -23,6 +29,11 @@ import {
   overpassPoisFixture,
   photonSearchFixture,
   photonReverseFixture,
+  pegelonlineStationsFixture,
+  odlLatestFixture,
+  dwdPollenFixture,
+  dwdUviFixture,
+  brightskyRadarFixture,
 } from '@invisible-city/test-fixtures';
 import { createMemoryCache } from './cache.js';
 import { demoConfig } from './config.js';
@@ -33,9 +44,15 @@ import { getAirStationContext } from './adapters/uba.js';
 import { getPoiContext } from './adapters/overpass.js';
 import { searchPlaces, reverseGeocode } from './adapters/photon.js';
 import { getTransitContext, type MappedStop } from './adapters/transit.js';
+import { getWaterLevelContext } from './adapters/pegelonline.js';
+import { getRadiationContext } from './adapters/odl.js';
+import { getPollenContext } from './adapters/pollen.js';
+import { getUvContext } from './adapters/uvi.js';
+import { getRadarContext } from './adapters/radar.js';
 
 function fixtureFetch(url: string): Promise<Response> {
   const body = (() => {
+    if (url.includes('/radar')) return brightskyRadarFixture;
     if (url.includes('api.brightsky.dev')) return brightskyWeatherFixture;
     if (url.includes('maps.dwd.de')) return dwdWarningsFixture;
     if (url.includes('stations/json')) return ubaStationsFixture;
@@ -43,6 +60,10 @@ function fixtureFetch(url: string): Promise<Response> {
     if (url.includes('overpass-api.de')) return overpassPoisFixture;
     if (url.includes('photon.komoot.io/reverse')) return photonReverseFixture;
     if (url.includes('photon.komoot.io')) return photonSearchFixture;
+    if (url.includes('pegelonline.wsv.de')) return pegelonlineStationsFixture;
+    if (url.includes('imis.bfs.de')) return odlLatestFixture;
+    if (url.includes('s31fg.json')) return dwdPollenFixture;
+    if (url.includes('uvi.json')) return dwdUviFixture;
     throw new Error(`No demo fixture for ${url}`);
   })();
   return Promise.resolve(
@@ -93,6 +114,84 @@ export const demoAdapters = {
   },
   async transit(coords: Coordinates, mappedStops: MappedStop[], selectedIso: string) {
     return stampDemo(await getTransitContext(coords, mappedStops, selectedIso, demoContext()));
+  },
+  async water(coords: Coordinates) {
+    return stampDemo(await getWaterLevelContext(coords, demoContext()));
+  },
+  async radiation(coords: Coordinates) {
+    return stampDemo(await getRadiationContext(coords, demoContext()));
+  },
+  async pollen(state: string | null) {
+    return stampDemo(await getPollenContext(state ?? 'Berlin', demoContext()));
+  },
+  async uv(coords: Coordinates) {
+    return stampDemo(await getUvContext(coords, demoContext()));
+  },
+  async radar(coords: Coordinates) {
+    return stampDemo(await getRadarContext(coords, demoContext()));
+  },
+  /**
+   * PRTR has no keyless live path (a downloaded Thru.de export is required),
+   * so its demo payload is constructed directly, stamped demo end-to-end,
+   * mirroring the real 'reported' semantics (annual declarations, thresholds).
+   */
+  emitters(coords: Coordinates): ModuleEnvelope<EmitterContext> {
+    const provider = getProvider('thru-prtr');
+    const retrievedAt = new Date().toISOString();
+    const facilityCoords = {
+      latitude: coords.latitude + 0.012,
+      longitude: coords.longitude + 0.018,
+    };
+    const distance = Math.round(distanceMeters(coords, facilityCoords));
+    const data: EmitterContext = {
+      facilities: [
+        {
+          facilityId: 'demo-prtr-1',
+          name: 'Heizkraftwerk Demo-Mitte',
+          activity: 'Verbrennung von Brennstoffen',
+          coordinates: facilityCoords,
+          distanceMeters: distance,
+          releases: [
+            {
+              pollutant: 'CO2 (Kohlendioxid)',
+              amountKg: 1_250_000_000,
+              medium: 'Luft',
+              year: 2023,
+              mode: 'reported',
+            },
+            {
+              pollutant: 'NOx (Stickoxide)',
+              amountKg: 210_000,
+              medium: 'Luft',
+              year: 2023,
+              mode: 'reported',
+            },
+          ],
+        },
+      ],
+      searchRadiusMeters: 10_000,
+      reportingYears: [2023],
+    };
+    return stampDemo({
+      status: 'ok',
+      demo: false,
+      data,
+      evidence: [
+        makeEvidence(provider, {
+          mode: 'reported',
+          method:
+            'Jahresmeldungen berichtspflichtiger Betriebe (Thru.de/PRTR-Datenexport), Umkreisabfrage über gemeldete Betriebskoordinaten. Gemeldete Jahresfrachten — keine Messung, keine Konzentration am gewählten Ort.',
+          spatial: {
+            kind: 'coverage',
+            description: `Berichtspflichtige Betriebe im Umkreis von 10 km; nächster Betrieb ${formatDistanceGerman(distance)} entfernt`,
+          },
+          completeness: 'partial',
+          retrievedAt,
+        }),
+      ],
+      limitations: provider.knownLimitations,
+      retrievedAt,
+    });
   },
   /**
    * CAMS has no keyless live path, so its demo payload is constructed directly

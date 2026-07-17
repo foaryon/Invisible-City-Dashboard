@@ -34,6 +34,12 @@ import {
   searchPlaces,
   reverseGeocode,
   getTransitContext,
+  getWaterLevelContext,
+  getRadiationContext,
+  getPollenContext,
+  getUvContext,
+  getRadarContext,
+  getEmitterContext,
   demoAdapters,
 } from '@invisible-city/providers';
 
@@ -184,6 +190,66 @@ export async function buildServer(opts: ServerOptions = {}): Promise<FastifyInst
 
     if (wantsDemo(parsed.data)) return demoAdapters.transit(coords, mappedStops, selectedIso);
     return getTransitContext(coords, mappedStops, selectedIso, ctx);
+  });
+
+  app.get('/api/water', async (req, reply) => {
+    const parsed = CoordsQuery.safeParse(req.query);
+    if (!parsed.success) return reply.code(400).send({ error: 'Ungültige Koordinaten.' });
+    const coords = parseCoords(parsed.data);
+    if (wantsDemo(parsed.data)) return demoAdapters.water(coords);
+    return getWaterLevelContext(coords, ctx);
+  });
+
+  app.get('/api/radiation', async (req, reply) => {
+    const parsed = CoordsQuery.safeParse(req.query);
+    if (!parsed.success) return reply.code(400).send({ error: 'Ungültige Koordinaten.' });
+    const coords = parseCoords(parsed.data);
+    if (wantsDemo(parsed.data)) return demoAdapters.radiation(coords);
+    return getRadiationContext(coords, ctx);
+  });
+
+  app.get('/api/pollen', async (req, reply) => {
+    const Query = CoordsQuery.extend({ state: z.string().optional() });
+    const parsed = Query.safeParse(req.query);
+    if (!parsed.success) return reply.code(400).send({ error: 'Ungültige Anfrage.' });
+    const coords = parseCoords(parsed.data);
+    if (wantsDemo(parsed.data)) return demoAdapters.pollen(parsed.data.state ?? null);
+    // Region assignment needs the Bundesland; derive via reverse geocoding when
+    // the client didn't provide it. Failure stays honest inside the adapter.
+    let state = parsed.data.state ?? null;
+    if (!state) {
+      try {
+        const rev = await reverseGeocode(coords, ctx);
+        state = rev.data?.[0]?.place.state ?? null;
+      } catch {
+        state = null;
+      }
+    }
+    return getPollenContext(state, ctx);
+  });
+
+  app.get('/api/uv', async (req, reply) => {
+    const parsed = CoordsQuery.safeParse(req.query);
+    if (!parsed.success) return reply.code(400).send({ error: 'Ungültige Koordinaten.' });
+    const coords = parseCoords(parsed.data);
+    if (wantsDemo(parsed.data)) return demoAdapters.uv(coords);
+    return getUvContext(coords, ctx);
+  });
+
+  app.get('/api/radar', async (req, reply) => {
+    const parsed = CoordsQuery.safeParse(req.query);
+    if (!parsed.success) return reply.code(400).send({ error: 'Ungültige Koordinaten.' });
+    const coords = parseCoords(parsed.data);
+    if (wantsDemo(parsed.data)) return demoAdapters.radar(coords);
+    return getRadarContext(coords, ctx);
+  });
+
+  app.get('/api/emitters', async (req, reply) => {
+    const parsed = CoordsQuery.safeParse(req.query);
+    if (!parsed.success) return reply.code(400).send({ error: 'Ungültige Koordinaten.' });
+    const coords = parseCoords(parsed.data);
+    if (wantsDemo(parsed.data)) return demoAdapters.emitters(coords);
+    return getEmitterContext(coords, ctx);
   });
 
   // Production single-deployable: serve the built SPA and fall back to

@@ -280,6 +280,196 @@ export const photonReverseFixture = {
   ],
 };
 
+/** Raw shape of PEGELONLINE `stations.json` (radius query, current measurements). */
+export const pegelonlineStationsFixture = [
+  {
+    uuid: 'demo-pegel-1',
+    number: '5803200',
+    shortname: 'BERLIN SCHLEUSE UW',
+    longname: 'Berlin Schleuse Unterwasser (Demo)',
+    km: 12.5,
+    agency: 'WSA SPREE-HAVEL',
+    longitude: 13.4046,
+    latitude: 52.5142,
+    water: { shortname: 'SPREE', longname: 'Spree' },
+    timeseries: [
+      {
+        shortname: 'W',
+        longname: 'Wasserstand',
+        unit: 'cm',
+        equidistance: 15,
+        currentMeasurement: {
+          timestamp: '2026-07-16T11:45:00+02:00',
+          value: 312.0,
+          stateMnwMhw: 'normal',
+          stateNswHsw: 'unknown',
+        },
+      },
+    ],
+  },
+  {
+    uuid: 'demo-pegel-2',
+    number: '5803400',
+    shortname: 'SOPHIENWERDER',
+    longname: 'Sophienwerder (Demo)',
+    km: 0.6,
+    agency: 'WSA SPREE-HAVEL',
+    longitude: 13.1892,
+    latitude: 52.5386,
+    water: { shortname: 'HAVEL', longname: 'Havel' },
+    timeseries: [
+      {
+        shortname: 'W',
+        longname: 'Wasserstand',
+        unit: 'cm',
+        equidistance: 15,
+        currentMeasurement: {
+          timestamp: '2026-07-16T11:45:00+02:00',
+          value: 29.0,
+          stateMnwMhw: 'low',
+        },
+      },
+    ],
+  },
+];
+
+/** Raw shape of the BfS ODL WFS GeoJSON layer `odlinfo_odl_1h_latest`. */
+export const odlLatestFixture = {
+  type: 'FeatureCollection',
+  features: [
+    {
+      type: 'Feature',
+      id: 'odlinfo_odl_1h_latest.110000006',
+      geometry: { type: 'Point', coordinates: [13.4105, 52.5244] },
+      properties: {
+        kenn: '110000006',
+        name: 'Berlin-Mitte (Demo)',
+        value: 0.078,
+        unit: 'µSv/h',
+        start_measure: '2026-07-16T09:00:00Z',
+        end_measure: '2026-07-16T10:00:00Z',
+        site_status: 1,
+        site_status_text: 'in Betrieb',
+      },
+    },
+    {
+      type: 'Feature',
+      id: 'odlinfo_odl_1h_latest.110000012',
+      geometry: { type: 'Point', coordinates: [13.287, 52.4675] },
+      properties: {
+        kenn: '110000012',
+        name: 'Berlin-Dahlem (Demo)',
+        value: 0.083,
+        unit: 'µSv/h',
+        start_measure: '2026-07-16T09:00:00Z',
+        end_measure: '2026-07-16T10:00:00Z',
+        site_status: 1,
+        site_status_text: 'in Betrieb',
+      },
+    },
+  ],
+  totalFeatures: 2,
+};
+
+/** Raw shape of the DWD pollen hazard index `s31fg.json`. */
+export const dwdPollenFixture = {
+  name: 'Pollenflug-Gefahrenindex',
+  sender: 'Deutscher Wetterdienst - Medizin-Meteorologie',
+  last_update: '2026-07-16 11:00 Uhr',
+  next_update: '2026-07-17 11:00 Uhr',
+  legend: {
+    id1: '0',
+    id1_desc: 'keine Belastung',
+    id2: '0-1',
+    id2_desc: 'keine bis geringe Belastung',
+    id3: '1',
+    id3_desc: 'geringe Belastung',
+    id4: '1-2',
+    id4_desc: 'geringe bis mittlere Belastung',
+    id5: '2',
+    id5_desc: 'mittlere Belastung',
+    id6: '2-3',
+    id6_desc: 'mittlere bis hohe Belastung',
+    id7: '3',
+    id7_desc: 'hohe Belastung',
+  },
+  content: [
+    {
+      region_id: 50,
+      region_name: 'Brandenburg und Berlin',
+      partregion_id: -1,
+      partregion_name: '',
+      Pollen: {
+        Graeser: { today: '2', tomorrow: '1-2', dayafter_to: '1' },
+        Beifuss: { today: '0-1', tomorrow: '0-1', dayafter_to: '0-1' },
+        Birke: { today: '0', tomorrow: '0', dayafter_to: '0' },
+      },
+    },
+    {
+      region_id: 121,
+      region_name: 'Bayern',
+      partregion_id: 121,
+      partregion_name: 'Allgäu/Oberbayern/Bay. Wald',
+      Pollen: {
+        Graeser: { today: '1', tomorrow: '1', dayafter_to: '0-1' },
+      },
+    },
+    {
+      region_id: 122,
+      region_name: 'Bayern',
+      partregion_id: 122,
+      partregion_name: 'Donauniederungen',
+      Pollen: {
+        Graeser: { today: '2', tomorrow: '1-2', dayafter_to: '1' },
+      },
+    },
+  ],
+};
+
+/** Raw shape of the DWD UV index forecast `uvi.json`. */
+export const dwdUviFixture = {
+  last_update: '2026-07-16 10:00 Uhr',
+  content: [
+    { city: 'Berlin', forecast: { today: 6, tomorrow: 6, dayafter_to: 5 } },
+    { city: 'München', forecast: { today: 7, tomorrow: 6, dayafter_to: 6 } },
+    { city: 'Ort-ohne-Koordinate', forecast: { today: 5, tomorrow: 5, dayafter_to: 4 } },
+  ],
+};
+
+/** Raw shape of the Bright Sky `/radar` endpoint (format=plain, small crop). */
+export const brightskyRadarFixture = {
+  radar: [
+    {
+      timestamp: '2026-07-16T09:50:00+00:00',
+      source: 'RADOLAN::RV::2026-07-16T09:50:00+00:00',
+      precipitation_5: [
+        [0, 0, 2],
+        [0, 12, 5],
+        [0, 3, 0],
+      ],
+    },
+    {
+      timestamp: '2026-07-16T09:55:00+00:00',
+      source: 'RADOLAN::RV::2026-07-16T09:50:00+00:00',
+      precipitation_5: [
+        [0, 1, 4],
+        [2, 25, 9],
+        [0, 6, 1],
+      ],
+    },
+  ],
+  latlon_position: { x: 1.2, y: 1.4 },
+};
+
+/** Documented-shape Thru.de PRTR CSV export (semicolon-separated, German decimals). */
+export const prtrCsvFixture = [
+  'Berichtsjahr;Name der Betriebseinrichtung;Haupttätigkeit;Geogr. Breite;Geogr. Länge;Schadstoff;Freisetzung Menge (kg);Umweltmedium',
+  '2023;Heizkraftwerk Demo-Mitte;Verbrennung von Brennstoffen;52,5211;13,4180;CO2 (Kohlendioxid);1250000000;Luft',
+  '2023;Heizkraftwerk Demo-Mitte;Verbrennung von Brennstoffen;52,5211;13,4180;NOx (Stickoxide);210000;Luft',
+  '2022;Heizkraftwerk Demo-Mitte;Verbrennung von Brennstoffen;52,5211;13,4180;CO2 (Kohlendioxid);1310000000;Luft',
+  '2023;Klärwerk Demo-Nord;Abwasserbehandlung;52,5891;13,3712;Stickstoff gesamt;98000;Wasser',
+].join('\n');
+
 /** Malformed payloads for negative tests (schema rejection paths). */
 export const malformedFixtures = {
   brightsky: { wetter: [] },
@@ -287,4 +477,9 @@ export const malformedFixtures = {
   ubaMeasures: { data: 'not-a-record' },
   overpass: { elements: 'nope' },
   photon: { features: [{ geometry: { coordinates: ['x'] } }] },
+  pegelonline: { stations: 'not-an-array' },
+  odl: { type: 'FeatureCollection', features: 'nope' },
+  pollen: { content: [{ region_id: 'x' }] },
+  uvi: { content: [{ city: 42 }] },
+  radar: { radar: [{ timestamp: '2026-07-16T09:50:00+00:00', precipitation_5: 'nope' }] },
 };

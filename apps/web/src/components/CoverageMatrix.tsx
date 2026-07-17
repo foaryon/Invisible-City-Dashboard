@@ -8,6 +8,12 @@ import {
   useAirModel,
   usePois,
   useTransit,
+  useWater,
+  useRadiation,
+  usePollen,
+  useUv,
+  useRadar,
+  useEmitters,
 } from '../queries.js';
 
 interface Row {
@@ -70,6 +76,12 @@ export function CoverageMatrix() {
   const airModel = useAirModel(selectedPlace, demoMode);
   const pois = usePois(selectedPlace, demoMode);
   const transit = useTransit(selectedPlace, selectedInstantIso(timeOffsetHours), demoMode);
+  const water = useWater(selectedPlace, demoMode);
+  const radiation = useRadiation(selectedPlace, demoMode);
+  const pollen = usePollen(selectedPlace, demoMode);
+  const uv = useUv(selectedPlace, demoMode);
+  const radar = useRadar(selectedPlace, demoMode);
+  const emitters = useEmitters(selectedPlace, demoMode);
 
   if (!selectedPlace) {
     return (
@@ -135,6 +147,43 @@ export function CoverageMatrix() {
       label: 'Kartierter POI-Kontext',
       state: moduleState(pois.data?.status, pois.isLoading),
       detail: 'OSM, Vollständigkeit unbekannt',
+    },
+    {
+      label: 'Regenradar',
+      state: moduleState(radar.data?.status, radar.isLoading),
+      detail: 'DWD RADOLAN 1 km (über Bright Sky)',
+    },
+    {
+      label: 'Pollenflug',
+      state: moduleState(pollen.data?.status, pollen.isLoading),
+      detail: 'DWD Gefahrenindex (Großregion)',
+    },
+    {
+      label: 'UV-Index',
+      state: moduleState(uv.data?.status, uv.isLoading),
+      detail: uv.data?.data ? `DWD Referenzort ${uv.data.data.cityName}` : 'DWD Referenzorte',
+    },
+    {
+      label: 'Wasserstände',
+      state: moduleState(water.data?.status, water.isLoading),
+      detail: water.data?.data?.stations?.[0]
+        ? `Pegel ${formatDistanceGerman(water.data.data.stations[0].distanceMeters)} entfernt`
+        : 'WSV/PEGELONLINE (Bundeswasserstraßen)',
+    },
+    {
+      label: 'Radioaktivität (ODL)',
+      state: moduleState(radiation.data?.status, radiation.isLoading),
+      detail: radiation.data?.data?.stations?.[0]
+        ? `Sonde ${formatDistanceGerman(radiation.data.data.stations[0].distanceMeters)} entfernt`
+        : 'BfS ODL-Messnetz',
+    },
+    {
+      label: 'Gemeldete Freisetzungen',
+      state: moduleState(emitters.data?.status, emitters.isLoading),
+      detail:
+        emitters.data?.status === 'configuration-required'
+          ? 'Thru.de/PRTR (PRTR_CSV_PATH erforderlich)'
+          : 'Thru.de/PRTR (Jahresmeldungen)',
     },
   ];
 

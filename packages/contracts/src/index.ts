@@ -25,6 +25,12 @@ export const DataModeSchema = z.enum([
   'cached',
   'unavailable',
   'demo',
+  /**
+   * Statutory annual declarations (e.g. PRTR emission reports): values reported
+   * by the obligated party for a reporting year — neither a measurement at the
+   * selected place nor a current condition.
+   */
+  'reported',
 ]);
 export type DataMode = z.infer<typeof DataModeSchema>;
 
@@ -452,3 +458,167 @@ export const GeocodeResultSchema = z.object({
   mode: DataModeSchema,
 });
 export type GeocodeResult = z.infer<typeof GeocodeResultSchema>;
+
+// ---------------------------------------------------------------------------
+// Water levels (PEGELONLINE / WSV) — gauge readings are point data at the
+// gauge on its waterway; never transferable to other waters or places.
+// ---------------------------------------------------------------------------
+
+export const WaterReadingSchema = z.object({
+  /** Source timeseries shortname, e.g. "W" (Wasserstand), "Q" (Abfluss). */
+  parameter: z.string(),
+  parameterName: z.string().nullable(),
+  value: z.number().nullable(),
+  unit: z.string(),
+  mode: DataModeSchema,
+  measuredAt: z.string().nullable(),
+  /** Source-declared classification vs. mean low/high water, verbatim. */
+  stateMnwMhw: z.string().nullable(),
+});
+export type WaterReading = z.infer<typeof WaterReadingSchema>;
+
+export const WaterStationSchema = z.object({
+  stationId: z.string(),
+  name: z.string(),
+  waterBody: z.string().nullable(),
+  coordinates: CoordinatesSchema,
+  distanceMeters: z.number().nonnegative(),
+  readings: z.array(WaterReadingSchema),
+});
+export type WaterStation = z.infer<typeof WaterStationSchema>;
+
+export const WaterLevelContextSchema = z.object({
+  stations: z.array(WaterStationSchema),
+  searchRadiusMeters: z.number().positive(),
+});
+export type WaterLevelContext = z.infer<typeof WaterLevelContextSchema>;
+
+// ---------------------------------------------------------------------------
+// Gamma dose rate (BfS ODL network) — probe-site point observations.
+// ---------------------------------------------------------------------------
+
+export const RadiationStationSchema = z.object({
+  stationId: z.string(),
+  name: z.string(),
+  coordinates: CoordinatesSchema,
+  distanceMeters: z.number().nonnegative(),
+  /** Gamma ambient dose rate at the probe, µSv/h. */
+  doseRate: z.number().nullable(),
+  unit: z.string(),
+  mode: DataModeSchema,
+  measuredAt: z.string().nullable(),
+  siteStatus: z.string().nullable(),
+});
+export type RadiationStation = z.infer<typeof RadiationStationSchema>;
+
+export const RadiationContextSchema = z.object({
+  stations: z.array(RadiationStationSchema),
+});
+export type RadiationContext = z.infer<typeof RadiationContextSchema>;
+
+// ---------------------------------------------------------------------------
+// Pollen forecast (DWD hazard index) — per LARGE forecast partregion,
+// assigned via Bundesland; never a point value.
+// ---------------------------------------------------------------------------
+
+export const PollenValueSchema = z.object({
+  allergen: z.string(),
+  /** Source index strings ("0", "0-1", … "3") — kept verbatim, never numified. */
+  today: z.string().nullable(),
+  tomorrow: z.string().nullable(),
+  dayAfterTomorrow: z.string().nullable(),
+  mode: DataModeSchema,
+});
+export type PollenValue = z.infer<typeof PollenValueSchema>;
+
+export const PollenPartregionSchema = z.object({
+  partregionId: z.number(),
+  partregionName: z.string().nullable(),
+  regionName: z.string(),
+  values: z.array(PollenValueSchema),
+});
+export type PollenPartregion = z.infer<typeof PollenPartregionSchema>;
+
+export const PollenContextSchema = z.object({
+  /** Bundesland used for region assignment (coverage semantics, not a point). */
+  state: z.string(),
+  partregions: z.array(PollenPartregionSchema),
+  /** Source legend: index string → German description. */
+  legend: z.record(z.string()),
+  lastUpdateRaw: z.string().nullable(),
+  nextUpdateRaw: z.string().nullable(),
+});
+export type PollenContext = z.infer<typeof PollenContextSchema>;
+
+// ---------------------------------------------------------------------------
+// UV index forecast (DWD) — published for a small set of reference locations.
+// ---------------------------------------------------------------------------
+
+export const UvDaySchema = z.object({
+  /** Berlin-calendar date the maximum applies to (YYYY-MM-DD). */
+  validOn: z.string(),
+  value: z.number().nullable(),
+  mode: DataModeSchema,
+});
+export type UvDay = z.infer<typeof UvDaySchema>;
+
+export const UvContextSchema = z.object({
+  cityName: z.string(),
+  coordinates: CoordinatesSchema,
+  distanceMeters: z.number().nonnegative(),
+  days: z.array(UvDaySchema),
+});
+export type UvContext = z.infer<typeof UvContextSchema>;
+
+// ---------------------------------------------------------------------------
+// Precipitation radar (DWD RADOLAN composite) — 1-km grid cell, incl. a short
+// nowcast; frames are mode-discriminated observed vs. forecast.
+// ---------------------------------------------------------------------------
+
+export const RadarFrameSchema = z.object({
+  validAt: z.string(),
+  mode: DataModeSchema,
+  /** Precipitation in the grid cell containing the selected point, mm per 5 min. */
+  precipitationMm: z.number().nullable(),
+});
+export type RadarFrame = z.infer<typeof RadarFrameSchema>;
+
+export const RadarContextSchema = z.object({
+  /** Source/product label as delivered (e.g. RADOLAN product line). */
+  source: z.string().nullable(),
+  resolutionKm: z.number().nullable(),
+  frames: z.array(RadarFrameSchema),
+});
+export type RadarContext = z.infer<typeof RadarContextSchema>;
+
+// ---------------------------------------------------------------------------
+// Reported industrial releases (Thru.de / PRTR) — statutory ANNUAL declarations
+// by facilities above thresholds; never a concentration or local air value.
+// ---------------------------------------------------------------------------
+
+export const EmitterReleaseSchema = z.object({
+  pollutant: z.string(),
+  /** Reported annual load in kilograms for the reporting year. */
+  amountKg: z.number().nullable(),
+  medium: z.string(),
+  year: z.number(),
+  mode: DataModeSchema,
+});
+export type EmitterRelease = z.infer<typeof EmitterReleaseSchema>;
+
+export const EmitterFacilitySchema = z.object({
+  facilityId: z.string(),
+  name: z.string(),
+  activity: z.string().nullable(),
+  coordinates: CoordinatesSchema,
+  distanceMeters: z.number().nonnegative(),
+  releases: z.array(EmitterReleaseSchema),
+});
+export type EmitterFacility = z.infer<typeof EmitterFacilitySchema>;
+
+export const EmitterContextSchema = z.object({
+  facilities: z.array(EmitterFacilitySchema),
+  searchRadiusMeters: z.number().positive(),
+  reportingYears: z.array(z.number()),
+});
+export type EmitterContext = z.infer<typeof EmitterContextSchema>;

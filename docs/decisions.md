@@ -2,6 +2,24 @@
 
 Records notable decisions and **pinned dependency versions**. Newest first.
 
+## 2026-07-17 — V1.1 provider expansion (water, radiation, pollen, UV, radar, PRTR)
+
+- **Decision:** six new providers, all following the existing adapter → Evidence → envelope
+  pattern: PEGELONLINE water levels (WSV), BfS ODL gamma dose rate, DWD pollen hazard index,
+  DWD UV index, DWD precipitation radar (point series via Bright Sky + WMS map overlay), and
+  Thru.de/PRTR reported industrial releases (config-gated on `PRTR_CSV_PATH`, imported to
+  SQLite like GTFS).
+- **Greenhouse gases:** deliberately integrated ONLY as PRTR facility-level annual
+  declarations (new data mode `reported`). Aggregated national/Länder GHG inventories have
+  no honest spatial relation to a selected point (annual, 1–2 y lag, coarse aggregation) and
+  are NOT integrated — showing them on a place lens would be pseudo-precision.
+- **Pollen assignment** is via Bundesland text match; multiple matching partregions are all
+  shown (limitation stated) instead of guessing polygons. **UV** locations come from a
+  documented product-side coordinate table because the source publishes names only;
+  unmatched locations are skipped. **ODL** fetches the full ~1,700-probe layer once (cached
+  15 min, shared by all places) instead of bbox queries — avoids WFS axis-order pitfalls.
+  **Radar** frames after retrieval time are mode-discriminated `forecast` (nowcast).
+
 ## 2026-07-17 — node:sqlite replaces better-sqlite3 (zero native deps)
 
 - **Decision:** SQLite now runs on Node's built-in `node:sqlite` behind a tiny shim

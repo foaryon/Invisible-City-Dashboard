@@ -14,6 +14,12 @@ import {
   type GeocodeResult,
   type Coordinates,
   type ProviderManifestEntry,
+  type WaterLevelContext,
+  type RadiationContext,
+  type PollenContext,
+  type UvContext,
+  type RadarContext,
+  type EmitterContext,
 } from '@invisible-city/contracts';
 
 export interface ReadinessProvider {
@@ -67,6 +73,22 @@ export const api = {
       at: atIso,
       demo,
     }),
+  water: (c: Coordinates, demo: boolean) =>
+    getJson<ModuleEnvelope<WaterLevelContext>>('/api/water', { ...coordParams(c), demo }),
+  radiation: (c: Coordinates, demo: boolean) =>
+    getJson<ModuleEnvelope<RadiationContext>>('/api/radiation', { ...coordParams(c), demo }),
+  pollen: (c: Coordinates, state: string | undefined, demo: boolean) =>
+    getJson<ModuleEnvelope<PollenContext>>('/api/pollen', {
+      ...coordParams(c),
+      ...(state ? { state } : {}),
+      demo,
+    }),
+  uv: (c: Coordinates, demo: boolean) =>
+    getJson<ModuleEnvelope<UvContext>>('/api/uv', { ...coordParams(c), demo }),
+  radar: (c: Coordinates, demo: boolean) =>
+    getJson<ModuleEnvelope<RadarContext>>('/api/radar', { ...coordParams(c), demo }),
+  emitters: (c: Coordinates, demo: boolean) =>
+    getJson<ModuleEnvelope<EmitterContext>>('/api/emitters', { ...coordParams(c), demo }),
   providers: () =>
     getJson<{ manifestVersion: string; providers: ProviderManifestEntry[] }>('/api/providers', {}),
   readiness: () => getJson<Readiness>('/api/readiness', {}),
