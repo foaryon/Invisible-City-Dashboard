@@ -8,8 +8,13 @@
  * serves either demo or live per request, and every demo payload carries the
  * flag end-to-end.
  */
-import { type ModuleEnvelope, type Coordinates } from '@invisible-city/contracts';
-import { DEMO_BANNER_TEXT } from '@invisible-city/evidence';
+import {
+  type ModuleEnvelope,
+  type Coordinates,
+  type AirModelContext,
+} from '@invisible-city/contracts';
+import { DEMO_BANNER_TEXT, makeEvidence, distanceMeters } from '@invisible-city/evidence';
+import { getProvider } from './manifest.js';
 import {
   brightskyWeatherFixture,
   dwdWarningsFixture,
@@ -88,5 +93,53 @@ export const demoAdapters = {
   },
   async transit(coords: Coordinates, mappedStops: MappedStop[], selectedIso: string) {
     return stampDemo(await getTransitContext(coords, mappedStops, selectedIso, demoContext()));
+  },
+  /**
+   * CAMS has no keyless live path, so its demo payload is constructed directly
+   * (a real NetCDF retrieval is impossible without a key). It is stamped demo
+   * end-to-end and snapped to a 0.1° grid cell to mirror the real behaviour —
+   * a regional value, never address-level.
+   */
+  airModel(coords: Coordinates): ModuleEnvelope<AirModelContext> {
+    const provider = getProvider('cams-eu-airquality');
+    const cellLat = Math.round(coords.latitude * 10) / 10;
+    const cellLon = Math.round(coords.longitude * 10) / 10;
+    const validAt = new Date().toISOString();
+    const offsetMeters = Math.round(
+      distanceMeters(coords, { latitude: cellLat, longitude: cellLon }),
+    );
+    const data: AirModelContext = {
+      cellLatitude: cellLat,
+      cellLongitude: cellLon,
+      resolutionKm: 11,
+      offsetMeters,
+      values: [
+        { pollutant: 'PM2', value: 8.7, unit: 'µg/m³', mode: 'modelled', validAt },
+        { pollutant: 'PM10', value: 15.4, unit: 'µg/m³', mode: 'modelled', validAt },
+        { pollutant: 'NO2', value: 21.9, unit: 'µg/m³', mode: 'modelled', validAt },
+        { pollutant: 'O3', value: 62.1, unit: 'µg/m³', mode: 'modelled', validAt },
+      ],
+    };
+    return stampDemo({
+      status: 'ok',
+      demo: false,
+      data,
+      evidence: [
+        makeEvidence(provider, {
+          mode: 'modelled',
+          method:
+            'CAMS-Ensemble (Median aus 11 europäischen Modellen), nächstgelegene Rasterzelle. Regionaler modellierter Hintergrund — kein adressgenauer Wert; nicht mit Stationsmessungen zusammenführbar.',
+          spatial: { kind: 'grid', resolutionKm: 11 },
+          completeness: 'complete',
+          retrievedAt: validAt,
+          validAt,
+          limitations: [
+            `Rasterzelle ~11 km, Zellzentrum ${offsetMeters} m vom gewählten Punkt entfernt.`,
+          ],
+        }),
+      ],
+      limitations: provider.knownLimitations,
+      retrievedAt: validAt,
+    });
   },
 };

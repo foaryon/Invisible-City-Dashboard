@@ -57,9 +57,10 @@ describe('demo mode over the API (never mixed with live)', () => {
     for (const r of body.data) expect(r.place.country).toBe('DE');
   });
 
-  it('serves demo air stations, warnings, POIs and transit', async () => {
+  it('serves demo air stations, air model, warnings, POIs and transit', async () => {
     for (const path of [
       '/api/air/stations?lat=52.52&lon=13.405&demo=1',
+      '/api/air/model?lat=52.52&lon=13.405&demo=1',
       '/api/warnings?lat=52.52&lon=13.405&demo=1',
       '/api/pois?lat=52.52&lon=13.405&demo=1',
       '/api/transit?lat=52.52&lon=13.405&stopCount=3&demo=1',

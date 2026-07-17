@@ -75,7 +75,7 @@ export function MapView() {
 
   const { selectedPlace, pins, activeLayer, demoMode, selectPlace } = useAppStore();
   const air = useAirStations(selectedPlace, demoMode);
-  const airModel = useAirModel(selectedPlace);
+  const airModel = useAirModel(selectedPlace, demoMode);
   const pois = usePois(selectedPlace, demoMode);
 
   // Init map once.

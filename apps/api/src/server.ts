@@ -150,7 +150,8 @@ export async function buildServer(opts: ServerOptions = {}): Promise<FastifyInst
     const parsed = CoordsQuery.safeParse(req.query);
     if (!parsed.success) return reply.code(400).send({ error: 'Ungültige Koordinaten.' });
     const coords = parseCoords(parsed.data);
-    // No demo fixture for CAMS — honest configuration-required when no key.
+    if (wantsDemo(parsed.data)) return demoAdapters.airModel(coords);
+    // Live: honest configuration-required when no CAMS key is present.
     return getAirModelContext(coords, ctx);
   });
 

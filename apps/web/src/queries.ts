@@ -45,10 +45,10 @@ export function usePois(place: SelectedPlace | null, demo: boolean) {
   });
 }
 
-export function useAirModel(place: SelectedPlace | null) {
+export function useAirModel(place: SelectedPlace | null, demo: boolean) {
   return useQuery({
-    queryKey: key('air-model', place, false),
-    queryFn: () => api.airModel(place!.coordinates),
+    queryKey: key('air-model', place, demo),
+    queryFn: () => api.airModel(place!.coordinates, demo),
     enabled: !!place,
     staleTime: 30 * 60_000,
   });

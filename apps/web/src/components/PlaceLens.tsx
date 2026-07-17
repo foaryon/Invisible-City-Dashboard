@@ -207,8 +207,8 @@ function AirModule() {
 }
 
 function AirModelModule() {
-  const selectedPlace = useAppStore((s) => s.selectedPlace);
-  const q = useAirModel(selectedPlace);
+  const { selectedPlace, demoMode } = useAppStore();
+  const q = useAirModel(selectedPlace, demoMode);
   const model = q.data?.data;
 
   return (

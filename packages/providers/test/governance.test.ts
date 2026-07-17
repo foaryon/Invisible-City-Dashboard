@@ -141,6 +141,7 @@ describe('demo/live separation (§3.1.J) — every demo adapter is stamped', () 
       await demoAdapters.search('berlin'),
       await demoAdapters.reverse(coords),
       await demoAdapters.transit(coords, [], '2026-07-16T12:00:00Z'),
+      demoAdapters.airModel(coords),
     ];
     for (const env of envelopes) {
       expect(env.demo).toBe(true);

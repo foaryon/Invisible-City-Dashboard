@@ -67,7 +67,7 @@ export function CoverageMatrix() {
   const weather = useWeather(selectedPlace, demoMode);
   const warnings = useWarnings(selectedPlace, demoMode);
   const air = useAirStations(selectedPlace, demoMode);
-  const airModel = useAirModel(selectedPlace);
+  const airModel = useAirModel(selectedPlace, demoMode);
   const pois = usePois(selectedPlace, demoMode);
   const transit = useTransit(selectedPlace, selectedInstantIso(timeOffsetHours), demoMode);
 

@@ -57,8 +57,8 @@ export const api = {
     getJson<ModuleEnvelope<WarningContext>>('/api/warnings', { ...coordParams(c), demo }),
   airStations: (c: Coordinates, demo: boolean) =>
     getJson<ModuleEnvelope<AirStationContext>>('/api/air/stations', { ...coordParams(c), demo }),
-  airModel: (c: Coordinates) =>
-    getJson<ModuleEnvelope<AirModelContext>>('/api/air/model', { ...coordParams(c) }),
+  airModel: (c: Coordinates, demo: boolean) =>
+    getJson<ModuleEnvelope<AirModelContext>>('/api/air/model', { ...coordParams(c), demo }),
   pois: (c: Coordinates, demo: boolean) =>
     getJson<ModuleEnvelope<PoiContext>>('/api/pois', { ...coordParams(c), demo }),
   transit: (c: Coordinates, atIso: string, demo: boolean) =>
