@@ -10,22 +10,25 @@ import {
   DEMO_PLACE,
 } from '@invisible-city/test-fixtures';
 import { createMemoryCache } from '../src/cache.js';
+import { loadConfig } from '../src/config.js';
 import { type AdapterContext } from '../src/runner.js';
 import { getWeatherContext } from '../src/adapters/brightsky.js';
 import { getWarningContext } from '../src/adapters/dwdWarnings.js';
 import { getAirStationContext } from '../src/adapters/uba.js';
 import { getPoiContext } from '../src/adapters/overpass.js';
 import { searchPlaces } from '../src/adapters/photon.js';
-import { getTransitAvailability } from '../src/adapters/transit.js';
+import { getTransitContext, type MappedStop } from '../src/adapters/transit.js';
 import { demoAdapters } from '../src/demo.js';
 
 const coords = DEMO_PLACE.coordinates;
 const FROM = '2026-07-16T08:00:00Z';
 const TO = '2026-07-16T14:00:00Z';
+const testConfig = loadConfig({} as NodeJS.ProcessEnv);
 
 function ctxWith(body: unknown, status = 200): AdapterContext {
   return {
     cache: createMemoryCache(),
+    config: testConfig,
     fetchImpl: () =>
       Promise.resolve(
         new Response(JSON.stringify(body), {
@@ -39,6 +42,7 @@ function ctxWith(body: unknown, status = 200): AdapterContext {
 function failingCtx(kind: 'network' | 'http500' | 'rate-limit'): AdapterContext {
   return {
     cache: createMemoryCache(),
+    config: testConfig,
     fetchImpl: () => {
       if (kind === 'network') return Promise.reject(new TypeError('fetch failed'));
       return Promise.resolve(new Response('err', { status: kind === 'http500' ? 500 : 429 }));
@@ -81,6 +85,7 @@ describe('Bright Sky (DWD) adapter', () => {
     let calls = 0;
     const ctx: AdapterContext = {
       cache,
+      config: testConfig,
       fetchImpl: () => {
         calls++;
         return Promise.resolve(
@@ -124,6 +129,7 @@ describe('UBA air-quality adapter', () => {
   function ubaCtx(): AdapterContext {
     return {
       cache: createMemoryCache(),
+      config: testConfig,
       fetchImpl: (url: string) => {
         const body = url.includes('stations/json') ? ubaStationsFixture : ubaMeasuresFixture;
         return Promise.resolve(new Response(JSON.stringify(body), { status: 200 }));
@@ -211,18 +217,25 @@ describe('Photon geocoding adapter', () => {
   });
 });
 
-describe('transit availability (no false operation claims)', () => {
-  it('never reports realtime as confirmed and never infers normal service', () => {
-    const env = getTransitAvailability(coords, 5);
+describe('transit context (no false operation claims)', () => {
+  const mapped: MappedStop[] = [
+    { name: 'U Demo', coordinates: { latitude: 52.5208, longitude: 13.4094 }, distanceMeters: 120 },
+  ];
+
+  it('provides mapped stop context but never fakes scheduled/realtime when unconfigured', async () => {
+    const env = await getTransitContext(coords, mapped, FROM, ctxWith({}));
     expect(env.data!.stopContext.coverage).toBe('confirmed');
+    expect(env.data!.stops[0]!.source).toBe('mapped');
+    // No GTFS / GTFS-RT configured → honest "not configured" states.
     expect(env.data!.scheduled.coverage).toBe('unknown');
     expect(env.data!.realtime.coverage).toBe('unknown');
     expect(env.data!.realtime.detail).toContain('NICHT Normalbetrieb');
   });
 
-  it('reports unknown stop context when the mapped source is unavailable', () => {
-    const env = getTransitAvailability(coords, null);
+  it('reports unknown stop context when no mapped stops are available', async () => {
+    const env = await getTransitContext(coords, [], FROM, ctxWith({}));
     expect(env.data!.stopContext.coverage).toBe('unknown');
+    expect(env.data!.stops).toHaveLength(0);
   });
 });
 

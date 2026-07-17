@@ -1,7 +1,14 @@
-import { type AvailabilityState } from '@invisible-city/contracts';
+import { type AvailabilityState, type TransitCoverage } from '@invisible-city/contracts';
 import { formatDistanceGerman } from '@invisible-city/evidence';
-import { useAppStore } from '../state/store.js';
-import { useWeather, useWarnings, useAirStations, usePois, useTransit } from '../queries.js';
+import { useAppStore, selectedInstantIso } from '../state/store.js';
+import {
+  useWeather,
+  useWarnings,
+  useAirStations,
+  useAirModel,
+  usePois,
+  useTransit,
+} from '../queries.js';
 
 interface Row {
   label: string;
@@ -40,15 +47,29 @@ function moduleState(status: string | undefined, loading: boolean): Availability
   }
 }
 
+function coverageState(coverage: TransitCoverage | undefined): AvailabilityState {
+  switch (coverage) {
+    case 'confirmed':
+      return 'available';
+    case 'partial':
+      return 'partial';
+    case 'not-covered':
+      return 'unavailable';
+    case 'temporarily-unavailable':
+      return 'source-error';
+    default:
+      return 'not-integrated';
+  }
+}
+
 export function CoverageMatrix() {
-  const { selectedPlace, demoMode } = useAppStore();
+  const { selectedPlace, demoMode, timeOffsetHours } = useAppStore();
   const weather = useWeather(selectedPlace, demoMode);
   const warnings = useWarnings(selectedPlace, demoMode);
   const air = useAirStations(selectedPlace, demoMode);
+  const airModel = useAirModel(selectedPlace);
   const pois = usePois(selectedPlace, demoMode);
-  const stopCount =
-    pois.data?.data?.pois.filter((p) => p.category === 'transit-stop').length ?? null;
-  const transit = useTransit(selectedPlace, stopCount, demoMode);
+  const transit = useTransit(selectedPlace, selectedInstantIso(timeOffsetHours), demoMode);
 
   if (!selectedPlace) {
     return (
@@ -60,6 +81,9 @@ export function CoverageMatrix() {
   }
 
   const nearestStation = air.data?.data?.stations?.[0];
+  const stopCount =
+    pois.data?.data?.pois.filter((p) => p.category === 'transit-stop').length ?? null;
+  const transitData = transit.data?.data;
   const rows: Row[] = [
     {
       label: 'Wettervorhersage',
@@ -80,8 +104,11 @@ export function CoverageMatrix() {
     },
     {
       label: 'Luft: Regionales Modell',
-      state: 'not-integrated',
-      detail: 'CAMS ~10-km-Raster (Stage 4, nicht aktiviert)',
+      state: moduleState(airModel.data?.status, airModel.isLoading),
+      detail:
+        airModel.data?.status === 'ok'
+          ? 'CAMS ~10-km-Raster'
+          : 'CAMS (Schlüssel erforderlich: CAMS_ADS_KEY)',
     },
     {
       label: 'Kartierte Halte',
@@ -90,13 +117,19 @@ export function CoverageMatrix() {
     },
     {
       label: 'Fahrplan (ÖPNV)',
-      state: 'not-integrated',
-      detail: 'DELFI GTFS (nicht aktiviert)',
+      state: coverageState(transitData?.scheduled.coverage),
+      detail:
+        transitData?.scheduled.coverage === 'confirmed'
+          ? 'DELFI GTFS (Soll-Fahrplan)'
+          : 'DELFI GTFS (GTFS_STATIC_PATH erforderlich)',
     },
     {
       label: 'Echtzeit (ÖPNV)',
-      state: 'not-integrated',
-      detail: 'GTFS-RT (deutschlandweit nur partiell; nicht aktiviert)',
+      state: coverageState(transitData?.realtime.coverage),
+      detail:
+        transitData?.realtime.coverage === 'partial'
+          ? 'GTFS-RT (Abdeckung partiell)'
+          : 'GTFS-RT (GTFS_RT_URL erforderlich)',
     },
     {
       label: 'Kartierter POI-Kontext',
@@ -104,7 +137,6 @@ export function CoverageMatrix() {
       detail: 'OSM, Vollständigkeit unbekannt',
     },
   ];
-  void transit;
 
   return (
     <section className="panel-section" aria-label="Datenverfügbarkeit">

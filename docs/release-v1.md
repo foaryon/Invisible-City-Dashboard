@@ -8,9 +8,9 @@
 | 2 | Choose a relevant time | ✅ | `TimeControl` (now … +48 h, Europe/Berlin) |
 | 3 | Inspect DWD weather/warning context | ✅ | `PlaceLens` weather + warnings, `dwd-brightsky`, `dwd-warnings` |
 | 4 | Inspect UBA station air context where available | ✅ | `PlaceLens` air, `uba-airdata` |
-| 5 | Optional CAMS regional context only if correctly integrated & visibly modelled | ✅ (deferred) | `proposed`; shown "nicht integriert" — never faked |
+| 5 | Optional CAMS regional context only if correctly integrated & visibly modelled | ✅ | `adapters/cams.ts` (ADS + NetCDF grid cell); live with `CAMS_ADS_KEY`, else honest config-required |
 | 6 | Supplementary mapped place/POI context (OSM attribution) | ✅ | `osm-overpass`, places layer |
-| 7 | Transit **availability** without false realtime/routing/reliability | ✅ | `getTransitAvailability` |
+| 7 | Transit context without false realtime/routing/reliability | ✅ | `getTransitContext` — real GTFS scheduled + GTFS-RT, config-gated |
 | 8 | Pin & compare A/B/C | ✅ | `Compare` (data mode beside every value; no score) |
 | 9 | Every material claim has inspectable source/time/mode/spatial/limitations | ✅ | `EvidenceInspector` |
 | 10 | Data gaps are first-class UI states | ✅ | `ModuleStatusNote`, coverage matrix |
@@ -34,9 +34,11 @@
 
 ## Activated providers & coverage
 
-**Live (`verified`):** DWD weather (Bright Sky), DWD warnings (WFS), UBA air stations,
-OSM Overpass POIs, Photon geocoding, OpenFreeMap base map.
-**Not live (`proposed`, shown honestly):** CAMS regional model, DELFI GTFS, GTFS-RT.
+**Live out of the box (keyless):** DWD weather (Bright Sky), DWD warnings (WFS), UBA air
+stations, OSM Overpass POIs, Photon geocoding, OpenFreeMap base map.
+**Integrated, live once configured:** CAMS regional model (`CAMS_ADS_KEY`), DELFI GTFS
+scheduled (`GTFS_STATIC_PATH`), GTFS-RT realtime (`GTFS_RT_URL`) — honest
+`configuration-required` until then, verified live via `/api/readiness`.
 
 Coverage per place is presented in the **Datenverfügbarkeit** matrix as neutral facts.
 

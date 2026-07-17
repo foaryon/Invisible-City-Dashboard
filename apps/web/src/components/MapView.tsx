@@ -11,7 +11,7 @@ import {
 import { stationSpatialRole } from '@invisible-city/evidence';
 import { useAppStore } from '../state/store.js';
 import { api } from '../api.js';
-import { useAirStations, usePois } from '../queries.js';
+import { useAirStations, useAirModel, usePois } from '../queries.js';
 
 const CATEGORY_COLOR: Record<string, string> = {
   park: tokens.park,
@@ -75,6 +75,7 @@ export function MapView() {
 
   const { selectedPlace, pins, activeLayer, demoMode, selectPlace } = useAppStore();
   const air = useAirStations(selectedPlace, demoMode);
+  const airModel = useAirModel(selectedPlace);
   const pois = usePois(selectedPlace, demoMode);
 
   // Init map once.
@@ -183,6 +184,24 @@ export function MapView() {
       }
     }
 
+    if (activeLayer === 'air-model' && airModel.data?.data) {
+      const m = airModel.data.data;
+      // Grid cell centre as a square marker — regional (~10 km), not a point value.
+      const el = markerEl(
+        tokens.pinC,
+        'square',
+        `CAMS-Rasterzelle ~${m.resolutionKm ?? 10} km (regionaler modellierter Hintergrund)`,
+      );
+      el.style.width = '22px';
+      el.style.height = '22px';
+      el.style.opacity = '0.65';
+      overlayMarkers.current.push(
+        new maplibregl.Marker({ element: el })
+          .setLngLat([m.cellLongitude, m.cellLatitude])
+          .addTo(map),
+      );
+    }
+
     if ((activeLayer === 'places' || activeLayer === 'transit') && pois.data?.data) {
       const filtered =
         activeLayer === 'transit'
@@ -201,7 +220,7 @@ export function MapView() {
         );
       }
     }
-  }, [activeLayer, air.data, pois.data]);
+  }, [activeLayer, air.data, airModel.data, pois.data]);
 
   return (
     <div

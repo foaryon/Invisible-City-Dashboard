@@ -45,15 +45,28 @@ export function usePois(place: SelectedPlace | null, demo: boolean) {
   });
 }
 
-export function useTransit(place: SelectedPlace | null, stopCount: number | null, demo: boolean) {
+export function useAirModel(place: SelectedPlace | null) {
   return useQuery({
-    queryKey: key('transit', place, demo, stopCount),
-    queryFn: () => api.transit(place!.coordinates, stopCount, demo),
+    queryKey: key('air-model', place, false),
+    queryFn: () => api.airModel(place!.coordinates),
     enabled: !!place,
-    staleTime: 10 * 60_000,
+    staleTime: 30 * 60_000,
+  });
+}
+
+export function useTransit(place: SelectedPlace | null, atIso: string, demo: boolean) {
+  return useQuery({
+    queryKey: key('transit', place, demo, atIso.slice(0, 13)),
+    queryFn: () => api.transit(place!.coordinates, atIso, demo),
+    enabled: !!place,
+    staleTime: 5 * 60_000,
   });
 }
 
 export function useProviders() {
   return useQuery({ queryKey: ['providers'], queryFn: api.providers, staleTime: Infinity });
+}
+
+export function useReadiness() {
+  return useQuery({ queryKey: ['readiness'], queryFn: api.readiness, staleTime: 60_000 });
 }

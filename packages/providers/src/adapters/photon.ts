@@ -12,7 +12,7 @@ import {
   type Coordinates,
 } from '@invisible-city/contracts';
 import { makeEvidence } from '@invisible-city/evidence';
-import { getProvider } from '../manifest.js';
+import { getEffectiveProvider } from '../manifest.js';
 import { requestFingerprint } from '../cache.js';
 import { fetchJsonWithCache, errorEnvelope, type AdapterContext } from '../runner.js';
 
@@ -56,7 +56,7 @@ async function runGeocode(
   ctx: AdapterContext,
   limit: number,
 ): Promise<ModuleEnvelope<GeocodeResult[]>> {
-  const provider = getProvider('photon-geocoding');
+  const provider = getEffectiveProvider('photon-geocoding', ctx.config);
   try {
     const result = await fetchJsonWithCache(provider, fingerprint, url, ctx);
     const parsed = PhotonResponse.safeParse(result.raw);
@@ -103,7 +103,7 @@ export async function searchPlaces(
   limit = 8,
 ): Promise<ModuleEnvelope<GeocodeResult[]>> {
   const q = query.trim();
-  const url = `https://photon.komoot.io/api?q=${encodeURIComponent(q)}&limit=${limit + 4}&lang=de`;
+  const url = `${ctx.config.photonUrl}/api?q=${encodeURIComponent(q)}&limit=${limit + 4}&lang=de`;
   const fingerprint = requestFingerprint({ resource: 'search', q: q.toLowerCase(), limit });
   return runGeocode(
     url,
@@ -120,7 +120,7 @@ export async function reverseGeocode(
 ): Promise<ModuleEnvelope<GeocodeResult[]>> {
   const lat = coords.latitude.toFixed(5);
   const lon = coords.longitude.toFixed(5);
-  const url = `https://photon.komoot.io/reverse?lat=${lat}&lon=${lon}&lang=de`;
+  const url = `${ctx.config.photonUrl}/reverse?lat=${lat}&lon=${lon}&lang=de`;
   const fingerprint = requestFingerprint({ resource: 'reverse', lat, lon });
   return runGeocode(
     url,

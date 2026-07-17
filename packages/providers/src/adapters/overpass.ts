@@ -12,7 +12,7 @@ import {
   type Coordinates,
 } from '@invisible-city/contracts';
 import { makeEvidence, distanceMeters } from '@invisible-city/evidence';
-import { getProvider } from '../manifest.js';
+import { getEffectiveProvider } from '../manifest.js';
 import { requestFingerprint } from '../cache.js';
 import { fetchJsonWithCache, errorEnvelope, type AdapterContext } from '../runner.js';
 
@@ -45,7 +45,7 @@ export async function getPoiContext(
   ctx: AdapterContext,
   radiusMeters = 1200,
 ): Promise<ModuleEnvelope<PoiContext>> {
-  const provider = getProvider('osm-overpass');
+  const provider = getEffectiveProvider('osm-overpass', ctx.config);
   const { latitude: lat, longitude: lon } = coords;
   const around = `around:${radiusMeters},${lat.toFixed(4)},${lon.toFixed(4)}`;
   const query = `
@@ -65,7 +65,7 @@ out center 200;`;
     lon: lon.toFixed(4),
     radiusMeters,
   });
-  const url = 'https://overpass-api.de/api/interpreter';
+  const url = ctx.config.overpassUrl;
 
   try {
     const result = await fetchJsonWithCache(provider, fingerprint, url, ctx, {

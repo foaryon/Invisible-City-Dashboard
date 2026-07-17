@@ -93,13 +93,17 @@ export const analyticalLayers: AnalyticalLayer[] = [
   {
     id: 'air-model',
     title: 'Luft: Regionales Modell (CAMS)',
-    sourceNote: 'Copernicus Atmosphere Monitoring Service — noch nicht integriert',
-    spatialMeaning: 'Raster ~10–20 km; niemals adressgenau.',
-    timeApplicability: 'Analyse + Prognose bis +96 h (nach Aktivierung).',
-    limitations: 'Nicht aktiviert: Registrierung, Abruf und Produkteignung sind nicht verifiziert.',
+    sourceNote: 'Copernicus Atmosphere Monitoring Service (Schlüssel: CAMS_ADS_KEY)',
+    spatialMeaning: 'Rasterzelle ~10–20 km; niemals adressgenau, nie mit Stationen fusioniert.',
+    timeApplicability: 'Analyse + Prognose bis +96 h.',
+    limitations:
+      'Live nur mit konfiguriertem Copernicus-ADS-Schlüssel; sonst „Konfiguration erforderlich“.',
     modes: ['modelled'],
-    legend: [{ swatch: '#6b7280', shape: 'square', label: 'Nicht integriert (Stage 4)' }],
-    enabled: false,
+    legend: [
+      { swatch: '#7fc8a9', shape: 'square', label: 'Modell-Rasterzelle (~10 km)' },
+      { swatch: '#6b7280', shape: 'ring', label: 'Ohne Schlüssel: nicht verfügbar' },
+    ],
+    enabled: true,
   },
   {
     id: 'transit',

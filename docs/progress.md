@@ -3,12 +3,14 @@
 Records, per stage: implemented work · tested behavior · known gaps · active providers ·
 coverage · blocked source issues · next smallest shippable slice.
 
-## Active providers (live)
+## Active providers
 
-`dwd-brightsky`, `dwd-warnings`, `uba-airdata`, `osm-overpass`, `photon-geocoding`,
-`openfreemap-basemap` — status **verified**.
-**Proposed (not live, shown as "nicht integriert"):** `cams-eu-airquality`, `delfi-gtfs`,
-`delfi-gtfs-rt`.
+**Live out of the box (keyless):** `dwd-brightsky`, `dwd-warnings`, `uba-airdata`,
+`osm-overpass`, `photon-geocoding`, `openfreemap-basemap`.
+**Integrated, live once configured:** `cams-eu-airquality` (`CAMS_ADS_KEY`), `delfi-gtfs`
+(`GTFS_STATIC_PATH`), `delfi-gtfs-rt` (`GTFS_RT_URL`). Until configured they return
+`configuration-required` (honest, never demo). Status is config-resolved at runtime; see
+`/api/readiness`.
 
 ## Blocked source issues
 
@@ -53,13 +55,15 @@ coverage · blocked source issues · next smallest shippable slice.
   completeness; partial when not all pollutants present; malformed directory → source-error.
 - **Gap/next:** verify array indices / component IDs / API version (TO VERIFY).
 
-## Stage 4 — Optional CAMS regional context ⛔ (deferred by design)
-- **Implemented:** manifest entry (`proposed`), layer registered as disabled ("nicht
-  integriert"), coverage matrix row. **No live calls.**
-- **Tested:** `isLiveAllowed('cams-eu-airquality') === false`; runner throws → the API maps to
-  `configuration-required`.
-- **Gap/next:** ADS registration, `cdsapi` retrieval, data format, product suitability, then
-  grid/raster rendering (never address-level).
+## Stage 4 — CAMS regional context ✅ (integrated, config-gated)
+- **Implemented:** real ADS process-API client + NetCDF nearest-grid-cell extraction
+  (`adapters/cams.ts`, `cams/extract.ts`); `/api/air/model` route; CAMS layer + Place Lens
+  module + coverage row; Copernicus attribution + provider caveat in Evidence. Grid cell (~10
+  km) with cell-centre offset; never address-level, never fused with stations.
+- **Tested:** `nearestGridValue`/`gridResolutionKm` unit tests (incl. 0..360 lon, NaN
+  rejection); API returns `configuration-required` (demo=false, data=null) without a key;
+  `isLiveAllowed('cams-eu-airquality', configured) === true` once keyed.
+- **Gap/next:** verify ADS request/response + NetCDF variable names against a real key.
 
 ## Stage 5 — Place & POI context ✅
 - **Implemented:** Overpass adapter (parks, stops, pharmacies, toilets, drinking water) with
@@ -70,12 +74,18 @@ coverage · blocked source issues · next smallest shippable slice.
 - **Gap/next:** clustering is via marker thinning at query level; a dedicated cluster layer is
   a polish item.
 
-## Stage 6 — Transit availability ✅ (availability only)
-- **Implemented:** nearby-stop context from the OSM mapped layer; scheduled + realtime shown
-  as **not integrated** with honest coverage detail; source + manifest evidence.
-- **Tested:** scheduled/realtime never shown as `confirmed`; realtime detail states missing
-  data ≠ normal service; no routing, no reliability.
-- **Gap/next:** DELFI GTFS + GTFS-RT activation (TO VERIFY, blocking).
+## Stage 6 — Transit context ✅ (real integration, config-gated)
+- **Implemented:** stop context from the OSM mapped layer AND the configured DELFI GTFS feed;
+  **real calendar-aware scheduled departures** (`gtfs/import.ts` → SQLite, `gtfs/query.ts`);
+  **real GTFS-RT** decode (`gtfs/realtime.ts`) summarizing delays/alerts for nearby stops;
+  `gtfs:import` CLI; Place Lens shows stops + departures. Verified end-to-end with a real
+  GTFS feed (import → scheduled 23:55 U8 served).
+- **Tested:** GTFS import/query (nearest stop, calendar active/inactive days, time filtering,
+  route-type labels); GTFS-RT protobuf round-trip + nearby-stop filtering; unconfigured →
+  honest "nicht konfiguriert"; realtime absence never implies normal service; no routing/
+  reliability.
+- **Gap/next:** DELFI registration/license confirmation; validate against a real national feed
+  (regional extract recommended); document RT operator coverage before `confirmed`.
 
 ## Stage 7 — Polish & hardening 🔄
 - **Implemented:** cache behaviour, mobile sheets + keyboard, empty/error/stale states,

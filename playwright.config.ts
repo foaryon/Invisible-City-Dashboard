@@ -41,7 +41,8 @@ export default defineConfig({
   webServer: [
     {
       command: 'npm run start --workspace apps/api',
-      env: { PORT: '3001', CACHE_DB: 'var/e2e-cache.sqlite' },
+      // E2E drives the UI in Demo Mode, so the API must permit demo.
+      env: { PORT: '3001', CACHE_DB: 'var/e2e-cache.sqlite', ENABLE_DEMO: '1' },
       url: 'http://127.0.0.1:3001/api/health',
       reuseExistingServer: !process.env.CI,
       timeout: 60_000,

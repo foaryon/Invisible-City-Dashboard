@@ -7,7 +7,7 @@ import {
 } from '@invisible-city/contracts';
 import { formatBerlin, formatDistanceGerman, stationSpatialRole } from '@invisible-city/evidence';
 import { useAppStore, selectedInstantIso } from '../state/store.js';
-import { useWeather, useWarnings, useAirStations, usePois, useTransit } from '../queries.js';
+import { useWeather, useWarnings, useAirStations, useAirModel, useTransit } from '../queries.js';
 import {
   DataModeChip,
   StatusPill,
@@ -206,12 +206,61 @@ function AirModule() {
   );
 }
 
+function AirModelModule() {
+  const selectedPlace = useAppStore((s) => s.selectedPlace);
+  const q = useAirModel(selectedPlace);
+  const model = q.data?.data;
+
+  return (
+    <div className="card">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <strong>Luft: Regionales Modell (CAMS)</strong>
+        {q.data ? <StatusPill status={q.data.status} /> : null}
+      </div>
+      {q.isLoading ? <LoadingNote /> : null}
+      {q.data && !model ? (
+        <ModuleStatusNote status={q.data.status} detail={q.data.statusDetail} />
+      ) : null}
+      {model ? (
+        <div style={{ marginTop: 8 }}>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 6 }}>
+            <DataModeChip mode="modelled" strong />
+            <span style={{ color: 'var(--text-faint)', fontSize: 11 }}>
+              Raster ~{model.resolutionKm ?? 10} km · Zellzentrum{' '}
+              {formatDistanceGerman(model.offsetMeters)} entfernt
+            </span>
+          </div>
+          {model.values.map((v) => (
+            <ValueRow
+              key={v.pollutant}
+              label={v.pollutant.replace('PM2', 'PM2.5')}
+              na={v.value === null}
+            >
+              {v.value === null ? 'n/v' : `${Math.round(v.value * 10) / 10} ${v.unit}`}
+            </ValueRow>
+          ))}
+          <p className="loading-shimmer" style={{ marginBottom: 0 }}>
+            Regional modellierter Hintergrund — kein adressgenauer Wert; nicht mit Stationsmessungen
+            zusammenführbar.
+          </p>
+        </div>
+      ) : null}
+      {q.data ? (
+        <div style={{ marginTop: 8 }}>
+          <InspectButton
+            title="Luft — regionales Modell (CAMS)"
+            evidence={q.data.evidence}
+            limitations={q.data.limitations}
+          />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function TransitModule() {
-  const { selectedPlace, demoMode } = useAppStore();
-  const pois = usePois(selectedPlace, demoMode);
-  const stopCount =
-    pois.data?.data?.pois.filter((p) => p.category === 'transit-stop').length ?? null;
-  const q = useTransit(selectedPlace, stopCount, demoMode);
+  const { selectedPlace, demoMode, timeOffsetHours } = useAppStore();
+  const q = useTransit(selectedPlace, selectedInstantIso(timeOffsetHours), demoMode);
   const data = q.data?.data;
 
   const rows: Array<[string, string, string]> = data
@@ -242,6 +291,26 @@ function TransitModule() {
           </p>
         </div>
       ))}
+      {data && data.stops.length > 0 ? (
+        <div style={{ marginTop: 8 }}>
+          {data.stops.slice(0, 3).map((s) => (
+            <div key={s.stopId} style={{ marginBottom: 6 }}>
+              <div style={{ fontSize: 12 }}>
+                {s.name}{' '}
+                <span style={{ color: 'var(--text-faint)' }}>
+                  · {formatDistanceGerman(s.distanceMeters)}
+                </span>{' '}
+                <DataModeChip mode={s.source} />
+              </div>
+              {s.scheduledDepartures.slice(0, 3).map((d, i) => (
+                <div key={i} style={{ fontSize: 11, color: 'var(--text-dim)', paddingLeft: 8 }}>
+                  {d.departureTime} · {d.routeName} {d.headsign ? `→ ${d.headsign}` : ''} ({d.mode})
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      ) : null}
       {q.data ? (
         <div style={{ marginTop: 8 }}>
           <InspectButton
@@ -279,6 +348,7 @@ export function PlaceLens() {
           <WeatherModule />
           <WarningsModule />
           <AirModule />
+          <AirModelModule />
           <TransitModule />
         </>
       )}

@@ -349,6 +349,26 @@ export const AirStationContextSchema = z.object({
 });
 export type AirStationContext = z.infer<typeof AirStationContextSchema>;
 
+export const AirModelValueSchema = z.object({
+  pollutant: PollutantSchema,
+  value: z.number().nullable(),
+  unit: z.string(),
+  mode: DataModeSchema,
+  validAt: z.string().nullable(),
+});
+export type AirModelValue = z.infer<typeof AirModelValueSchema>;
+
+/** CAMS regional model context — a grid cell (~10 km), never an address value. */
+export const AirModelContextSchema = z.object({
+  cellLatitude: z.number(),
+  cellLongitude: z.number(),
+  resolutionKm: z.number().nullable(),
+  /** Distance from the selected point to the grid-cell centre. */
+  offsetMeters: z.number().nonnegative(),
+  values: z.array(AirModelValueSchema),
+});
+export type AirModelContext = z.infer<typeof AirModelContextSchema>;
+
 export const PoiCategorySchema = z.enum([
   'park',
   'transit-stop',
@@ -373,6 +393,38 @@ export const PoiContextSchema = z.object({
 });
 export type PoiContext = z.infer<typeof PoiContextSchema>;
 
+export const ScheduledDepartureSchema = z.object({
+  departureTime: z.string(),
+  routeName: z.string(),
+  headsign: z.string(),
+  mode: z.string(),
+});
+export type ScheduledDeparture = z.infer<typeof ScheduledDepartureSchema>;
+
+export const TransitStopSchema = z.object({
+  stopId: z.string(),
+  name: z.string(),
+  coordinates: CoordinatesSchema,
+  distanceMeters: z.number().nonnegative(),
+  /** Mapped-context source of the stop location: 'mapped' (OSM) or 'scheduled' (GTFS). */
+  source: DataModeSchema,
+  scheduledDepartures: z.array(ScheduledDepartureSchema),
+});
+export type TransitStop = z.infer<typeof TransitStopSchema>;
+
+export const RealtimeStopUpdateSchema = z.object({
+  stopId: z.string(),
+  routeId: z.string().nullable(),
+  delaySeconds: z.number().nullable(),
+});
+export type RealtimeStopUpdate = z.infer<typeof RealtimeStopUpdateSchema>;
+
+export const RealtimeAlertSchema = z.object({
+  headerText: z.string().nullable(),
+  descriptionText: z.string().nullable(),
+});
+export type RealtimeAlert = z.infer<typeof RealtimeAlertSchema>;
+
 export const TransitAvailabilitySchema = z.object({
   stopContext: z.object({
     coverage: TransitCoverageSchema,
@@ -386,6 +438,12 @@ export const TransitAvailabilitySchema = z.object({
     coverage: TransitCoverageSchema,
     detail: z.string(),
   }),
+  /** Nearby stops (mapped and/or from the scheduled feed) with any scheduled departures. */
+  stops: z.array(TransitStopSchema),
+  /** Realtime updates/alerts that touch nearby stops (only within confirmed coverage). */
+  realtimeUpdates: z.array(RealtimeStopUpdateSchema),
+  realtimeAlerts: z.array(RealtimeAlertSchema),
+  feedTimestamp: z.string().nullable(),
 });
 export type TransitAvailability = z.infer<typeof TransitAvailabilitySchema>;
 

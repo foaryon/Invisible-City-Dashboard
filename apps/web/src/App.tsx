@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { DEMO_BANNER_TEXT } from '@invisible-city/evidence';
 import { useAppStore } from './state/store.js';
 import { MapView } from './components/MapView.js';
@@ -8,9 +9,20 @@ import { EvidenceInspector } from './components/EvidenceInspector.js';
 import { SearchBox } from './components/SearchBox.js';
 import { TimeControl } from './components/TimeControl.js';
 import { Compare } from './components/Compare.js';
+import { useReadiness } from './queries.js';
 
+/** Demo toggle only appears when the server allows demo (dev). Production hides it. */
 function DemoToggle() {
   const { demoMode, setDemoMode } = useAppStore();
+  const readiness = useReadiness();
+  const demoEnabled = readiness.data?.demoEnabled ?? false;
+
+  // If the server disables demo, force live so state can never desync.
+  useEffect(() => {
+    if (!demoEnabled && demoMode) setDemoMode(false);
+  }, [demoEnabled, demoMode, setDemoMode]);
+
+  if (!demoEnabled) return null;
   return (
     <label className="toggle">
       <input

@@ -20,13 +20,14 @@ import {
   photonReverseFixture,
 } from '@invisible-city/test-fixtures';
 import { createMemoryCache } from './cache.js';
+import { demoConfig } from './config.js';
 import { type AdapterContext } from './runner.js';
 import { getWeatherContext } from './adapters/brightsky.js';
 import { getWarningContext } from './adapters/dwdWarnings.js';
 import { getAirStationContext } from './adapters/uba.js';
 import { getPoiContext } from './adapters/overpass.js';
 import { searchPlaces, reverseGeocode } from './adapters/photon.js';
-import { getTransitAvailability } from './adapters/transit.js';
+import { getTransitContext, type MappedStop } from './adapters/transit.js';
 
 function fixtureFetch(url: string): Promise<Response> {
   const body = (() => {
@@ -48,7 +49,7 @@ function fixtureFetch(url: string): Promise<Response> {
 }
 
 export function demoContext(): AdapterContext {
-  return { cache: createMemoryCache(), fetchImpl: fixtureFetch };
+  return { cache: createMemoryCache(), config: demoConfig(), fetchImpl: fixtureFetch };
 }
 
 export function stampDemo<T>(envelope: ModuleEnvelope<T>): ModuleEnvelope<T> {
@@ -85,7 +86,7 @@ export const demoAdapters = {
   async reverse(coords: Coordinates) {
     return stampDemo(await reverseGeocode(coords, demoContext()));
   },
-  transit(coords: Coordinates, stopCount: number | null) {
-    return stampDemo(getTransitAvailability(coords, stopCount));
+  async transit(coords: Coordinates, mappedStops: MappedStop[], selectedIso: string) {
+    return stampDemo(await getTransitContext(coords, mappedStops, selectedIso, demoContext()));
   },
 };

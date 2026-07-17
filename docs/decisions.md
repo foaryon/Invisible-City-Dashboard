@@ -2,6 +2,37 @@
 
 Records notable decisions and **pinned dependency versions**. Newest first.
 
+## 2026-07-17 — Config-driven provider activation (production posture)
+
+- **Decision:** provider status is resolved at runtime against configuration
+  (`config.ts` + `getEffectiveProvider`). Keyless providers (DWD/UBA/OSM/Photon/OpenFreeMap)
+  are always `verified`/live; credentialed providers (CAMS, DELFI GTFS, GTFS-RT) are base
+  `proposed` and upgrade to `verified` only when their env config is present. Without it the
+  API returns `configuration-required` naming the exact env var — never demo, never invented.
+  Rationale: "production-ready" must mean real code that is honest about what a given
+  deployment has credentials for. `/api/readiness` exposes the live/needs-config map.
+
+## 2026-07-17 — Real CAMS / DELFI / GTFS-RT integrations
+
+- **CAMS:** real ADS process-API client + NetCDF point extraction (`netcdfjs`). The
+  nearest-grid-cell selection is a pure, unit-tested function; the retrieval flow follows the
+  documented API and is endpoint-configurable. Gated on `CAMS_ADS_KEY`.
+- **DELFI GTFS static:** real importer (`adm-zip` + `csv-parse` → `better-sqlite3`) with a
+  calendar-aware departures query. `adm-zip` loads the zip in memory — fine for regional
+  extracts; the full nationwide feed should use a filtered/regional extract (documented).
+- **GTFS-RT:** real protobuf decode via the official `gtfs-realtime-bindings`; summarizes
+  trip-update delays/alerts for nearby stops only, coverage reported `partial`.
+- **Rationale:** these were the only stubbed providers; implementing them for real (config-
+  gated) removes the last placeholders while staying within the reality policy (credentialed
+  sources cannot serve data without the operator's credentials).
+
+## 2026-07-17 — Single-deployable + demo gated off by default
+
+- **Decision:** the Fastify API serves the built SPA (`@fastify/static`, SPA fallback) so the
+  product ships as one process/image (`Dockerfile`). Demo mode is off unless `ENABLE_DEMO=1`
+  and is rejected server-side otherwise; the web hides the demo toggle when the server
+  reports it disabled. Live is the default everywhere.
+
 ## 2026-07-16 — Node version
 
 - **Charter target:** Node 24 LTS ("Krypton"). **Build environment:** Node 22.22.2.
@@ -76,5 +107,10 @@ Records notable decisions and **pinned dependency versions**. Newest first.
 | @playwright/test | ^1.53.0 | E2E |
 | eslint | ^9.30.0 | flat config + typescript-eslint + react-hooks |
 | prettier | ^3.6.0 | formatting |
+| @fastify/static | ^8.1.0 | serve the built SPA from the API |
+| adm-zip | ^0.5.16 | read/build GTFS zips |
+| csv-parse | ^5.6.0 | parse GTFS CSV tables |
+| gtfs-realtime-bindings | ^1.1.1 | decode GTFS-RT protobuf |
+| netcdfjs | ^3.0.0 | read CAMS NetCDF grids |
 
 Exact resolved versions are captured in `package-lock.json`.

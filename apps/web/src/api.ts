@@ -8,12 +8,27 @@ import {
   type WeatherContext,
   type WarningContext,
   type AirStationContext,
+  type AirModelContext,
   type PoiContext,
   type TransitAvailability,
   type GeocodeResult,
   type Coordinates,
   type ProviderManifestEntry,
 } from '@invisible-city/contracts';
+
+export interface ReadinessProvider {
+  providerId: string;
+  displayName: string;
+  status: string;
+  live: boolean;
+  configured: boolean;
+  requiresEnv: string[];
+}
+export interface Readiness {
+  manifestVersion: string;
+  demoEnabled: boolean;
+  providers: ReadinessProvider[];
+}
 
 async function getJson<T>(
   path: string,
@@ -42,14 +57,17 @@ export const api = {
     getJson<ModuleEnvelope<WarningContext>>('/api/warnings', { ...coordParams(c), demo }),
   airStations: (c: Coordinates, demo: boolean) =>
     getJson<ModuleEnvelope<AirStationContext>>('/api/air/stations', { ...coordParams(c), demo }),
+  airModel: (c: Coordinates) =>
+    getJson<ModuleEnvelope<AirModelContext>>('/api/air/model', { ...coordParams(c) }),
   pois: (c: Coordinates, demo: boolean) =>
     getJson<ModuleEnvelope<PoiContext>>('/api/pois', { ...coordParams(c), demo }),
-  transit: (c: Coordinates, stopCount: number | null, demo: boolean) =>
+  transit: (c: Coordinates, atIso: string, demo: boolean) =>
     getJson<ModuleEnvelope<TransitAvailability>>('/api/transit', {
       ...coordParams(c),
-      ...(stopCount === null ? {} : { stopCount }),
+      at: atIso,
       demo,
     }),
   providers: () =>
     getJson<{ manifestVersion: string; providers: ProviderManifestEntry[] }>('/api/providers', {}),
+  readiness: () => getJson<Readiness>('/api/readiness', {}),
 };

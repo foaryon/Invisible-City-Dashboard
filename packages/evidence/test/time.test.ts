@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   ubaCetToIso,
   berlinUtcOffsetMinutes,
+  berlinDateParts,
   formatBerlin,
   ageSeconds,
   formatAgeGerman,
@@ -42,6 +43,22 @@ describe('Europe/Berlin display handling (DST-correct)', () => {
   it('renders a summer UBA measurement at the correct Berlin wall-clock time', () => {
     const iso = ubaCetToIso('2026-07-16 12:00:00')!;
     expect(formatBerlin(iso, { dateStyle: undefined, timeStyle: 'short' })).toBe('13:00');
+  });
+});
+
+describe('berlinDateParts (GTFS calendar/time queries)', () => {
+  it('gives the local Berlin date and seconds-of-day in summer (CEST)', () => {
+    // 2026-07-17 08:05 UTC → 10:05 Berlin.
+    const parts = berlinDateParts('2026-07-17T08:05:00Z');
+    expect(parts.yyyymmdd).toBe('20260717');
+    expect(parts.secondsOfDay).toBe(10 * 3600 + 5 * 60);
+  });
+
+  it('rolls into the correct local date near midnight UTC', () => {
+    // 2026-07-17 23:30 UTC → 2026-07-18 01:30 Berlin.
+    const parts = berlinDateParts('2026-07-17T23:30:00Z');
+    expect(parts.yyyymmdd).toBe('20260718');
+    expect(parts.secondsOfDay).toBe(1 * 3600 + 30 * 60);
   });
 });
 

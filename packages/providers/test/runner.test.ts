@@ -8,6 +8,9 @@ import {
 } from '../src/cache.js';
 import { fetchJsonWithCache, ProviderNotLiveError, errorEnvelope } from '../src/runner.js';
 import { getProvider, providerManifest, isLiveAllowed } from '../src/manifest.js';
+import { loadConfig } from '../src/config.js';
+
+const noConfig = loadConfig({} as NodeJS.ProcessEnv);
 
 function testProvider(overrides: Partial<ProviderManifestEntry> = {}): ProviderManifestEntry {
   return {
@@ -22,14 +25,28 @@ describe('provider manifest gate (§5.2)', () => {
   it('non-verified providers cannot serve live data', async () => {
     const provider = testProvider({ status: 'proposed' });
     await expect(
-      fetchJsonWithCache(provider, 'fp', 'https://example.org', { cache: createMemoryCache() }),
+      fetchJsonWithCache(provider, 'fp', 'https://example.org', {
+        cache: createMemoryCache(),
+        config: noConfig,
+      }),
     ).rejects.toBeInstanceOf(ProviderNotLiveError);
   });
 
-  it('CAMS and DELFI are proposed (not live) in this build', () => {
-    expect(isLiveAllowed('cams-eu-airquality')).toBe(false);
-    expect(isLiveAllowed('delfi-gtfs')).toBe(false);
-    expect(isLiveAllowed('delfi-gtfs-rt')).toBe(false);
+  it('CAMS and DELFI are not live without configuration', () => {
+    expect(isLiveAllowed('cams-eu-airquality', noConfig)).toBe(false);
+    expect(isLiveAllowed('delfi-gtfs', noConfig)).toBe(false);
+    expect(isLiveAllowed('delfi-gtfs-rt', noConfig)).toBe(false);
+  });
+
+  it('CAMS and DELFI become live once their configuration is present', () => {
+    const configured = loadConfig({
+      CAMS_ADS_KEY: 'test-key',
+      GTFS_STATIC_PATH: '/feeds/delfi.zip',
+      GTFS_RT_URL: 'https://example.org/rt',
+    } as unknown as NodeJS.ProcessEnv);
+    expect(isLiveAllowed('cams-eu-airquality', configured)).toBe(true);
+    expect(isLiveAllowed('delfi-gtfs', configured)).toBe(true);
+    expect(isLiveAllowed('delfi-gtfs-rt', configured)).toBe(true);
   });
 
   it('every manifest entry validates and carries attribution + review date', () => {
@@ -69,7 +86,11 @@ describe('stale-cache policy (§3.1.J: last good response only visibly labelled)
       provider,
       'fp1',
       'https://example.org/x',
-      { cache: staleCache, fetchImpl: () => Promise.reject(new TypeError('source down')) },
+      {
+        cache: staleCache,
+        config: noConfig,
+        fetchImpl: () => Promise.reject(new TypeError('source down')),
+      },
     );
     expect(second.stale).toBe(true);
     expect(second.raw.hello).toBe('world');
@@ -81,6 +102,7 @@ describe('stale-cache policy (§3.1.J: last good response only visibly labelled)
     await expect(
       fetchJsonWithCache(provider, 'fp2', 'https://example.org/y', {
         cache: createMemoryCache(),
+        config: noConfig,
         fetchImpl: () => Promise.reject(new TypeError('down')),
       }),
     ).rejects.toThrow();

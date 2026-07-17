@@ -1,12 +1,14 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { type FastifyInstance } from 'fastify';
 import { moduleEnvelopeSchema, WeatherContextSchema } from '@invisible-city/contracts';
+import { loadConfig } from '@invisible-city/providers';
 import { buildServer } from '../src/server.js';
 
 let app: FastifyInstance;
 
 beforeAll(async () => {
-  app = await buildServer();
+  // Demo is opt-in via ENABLE_DEMO; enable it so the demo paths are exercised.
+  app = await buildServer({ config: loadConfig({ ENABLE_DEMO: '1' } as NodeJS.ProcessEnv) });
 });
 
 afterAll(async () => {
@@ -69,6 +71,45 @@ describe('demo mode over the API (never mixed with live)', () => {
       expect(body.status).toBe('demo');
     }
   });
+});
+
+describe('readiness (config-driven activation)', () => {
+  it('reports keyless providers live and CAMS/DELFI as needing configuration', async () => {
+    const res = await app.inject({ url: '/api/readiness' });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    const byId = Object.fromEntries(
+      body.providers.map((p: { providerId: string }) => [p.providerId, p]),
+    );
+    expect(byId['dwd-brightsky'].live).toBe(true);
+    expect(byId['uba-airdata'].live).toBe(true);
+    expect(byId['cams-eu-airquality'].live).toBe(false);
+    expect(byId['cams-eu-airquality'].requiresEnv).toContain('CAMS_ADS_KEY');
+    expect(byId['delfi-gtfs'].live).toBe(false);
+  });
+
+  it('CAMS air-model reports configuration-required without a key (not demo, not invented)', async () => {
+    const res = await app.inject({ url: '/api/air/model?lat=52.52&lon=13.405' });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.status).toBe('configuration-required');
+    expect(body.demo).toBe(false);
+    expect(body.data).toBeNull();
+  });
+});
+
+describe('production posture: demo disabled by default', () => {
+  it('ignores ?demo=1 when ENABLE_DEMO is not set (serves live, never demo)', async () => {
+    const prod = await buildServer(); // default config → enableDemo false
+    try {
+      const res = await prod.inject({ url: '/api/weather?lat=52.52&lon=13.405&demo=1' });
+      const body = res.json();
+      expect(body.demo).toBe(false);
+      expect(body.status).not.toBe('demo');
+    } finally {
+      await prod.close();
+    }
+  }, 90_000);
 });
 
 describe('live mode without network (provider failure is visible, never invented)', () => {

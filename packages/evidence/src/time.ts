@@ -72,6 +72,30 @@ export function berlinUtcOffsetMinutes(iso: string): number {
   return Math.round((asUtc - date.getTime()) / 60000);
 }
 
+/**
+ * Local Europe/Berlin date (YYYYMMDD) and seconds-since-local-midnight for an
+ * ISO instant. Used to query GTFS service calendars and scheduled departures.
+ */
+export function berlinDateParts(iso: string): { yyyymmdd: string; secondsOfDay: number } {
+  const date = new Date(iso);
+  const fmt = new Intl.DateTimeFormat('en-CA', {
+    timeZone: BERLIN_TZ,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  });
+  const parts = Object.fromEntries(fmt.formatToParts(date).map((p) => [p.type, p.value]));
+  const yyyymmdd = `${parts.year}${parts.month}${parts.day}`;
+  let hour = Number(parts.hour);
+  if (hour === 24) hour = 0;
+  const secondsOfDay = hour * 3600 + Number(parts.minute) * 60 + Number(parts.second);
+  return { yyyymmdd, secondsOfDay };
+}
+
 /** Age in whole seconds between an ISO instant and now (or a reference instant). */
 export function ageSeconds(iso: string, nowIso?: string): number | null {
   const then = new Date(iso).getTime();

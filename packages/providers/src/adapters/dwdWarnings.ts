@@ -12,7 +12,7 @@ import {
   type Coordinates,
 } from '@invisible-city/contracts';
 import { makeEvidence } from '@invisible-city/evidence';
-import { getProvider } from '../manifest.js';
+import { getEffectiveProvider } from '../manifest.js';
 import { requestFingerprint } from '../cache.js';
 import { fetchJsonWithCache, errorEnvelope, type AdapterContext } from '../runner.js';
 
@@ -35,13 +35,13 @@ export async function getWarningContext(
   coords: Coordinates,
   ctx: AdapterContext,
 ): Promise<ModuleEnvelope<WarningContext>> {
-  const provider = getProvider('dwd-warnings');
+  const provider = getEffectiveProvider('dwd-warnings', ctx.config);
   const lat = coords.latitude.toFixed(4);
   const lon = coords.longitude.toFixed(4);
   // Geometry column name documented as THE_GEOM — re-verification tracked in the manifest.
   const cql = encodeURIComponent(`INTERSECTS(THE_GEOM, POINT(${lon} ${lat}))`);
   const url =
-    'https://maps.dwd.de/geoserver/dwd/ows?service=WFS&version=2.0.0&request=GetFeature' +
+    `${ctx.config.dwdWfsUrl}?service=WFS&version=2.0.0&request=GetFeature` +
     `&typeName=dwd%3AWarnungen_Gemeinden&outputFormat=application%2Fjson&CQL_FILTER=${cql}`;
   const fingerprint = requestFingerprint({ layer: 'warnungen-gemeinden', lat, lon });
 

@@ -25,11 +25,9 @@ import {
   stationSpatialRole,
   ubaCetToIso,
 } from '@invisible-city/evidence';
-import { getProvider } from '../manifest.js';
+import { getEffectiveProvider } from '../manifest.js';
 import { requestFingerprint } from '../cache.js';
 import { fetchJsonWithCache, errorEnvelope, type AdapterContext } from '../runner.js';
-
-const BASE = 'https://luftdaten.umweltbundesamt.de/api/air_data/v3';
 
 /**
  * Component IDs per UBA API documentation (re-verification tracked in the
@@ -78,8 +76,8 @@ function parseStationRow(id: string, row: unknown[]): StationRow | null {
 }
 
 async function fetchStations(ctx: AdapterContext) {
-  const provider = getProvider('uba-airdata');
-  const url = `${BASE}/stations/json?lang=de`;
+  const provider = getEffectiveProvider('uba-airdata', ctx.config);
+  const url = `${ctx.config.ubaBaseUrl}/stations/json?lang=de`;
   const fingerprint = requestFingerprint({ resource: 'stations' });
   const result = await fetchJsonWithCache(provider, fingerprint, url, ctx);
   const parsed = StationsResponse.safeParse(result.raw);
@@ -128,7 +126,7 @@ export async function getAirStationContext(
   ctx: AdapterContext,
   maxStations = 3,
 ): Promise<ModuleEnvelope<AirStationContext>> {
-  const provider = getProvider('uba-airdata');
+  const provider = getEffectiveProvider('uba-airdata', ctx.config);
   try {
     const { stations, result: stationsResult } = await fetchStations(ctx);
     if (!stations) {
@@ -174,7 +172,7 @@ export async function getAirStationContext(
       const measurements: AirMeasurement[] = [];
       for (const comp of COMPONENTS) {
         const url =
-          `${BASE}/measures/json?date_from=${fmtDate(from)}&time_from=1&date_to=${fmtDate(now)}&time_to=24` +
+          `${ctx.config.ubaBaseUrl}/measures/json?date_from=${fmtDate(from)}&time_from=1&date_to=${fmtDate(now)}&time_to=24` +
           `&station=${station.stationId}&component=${comp.id}&scope=2`;
         const fingerprint = requestFingerprint({
           resource: 'measures',

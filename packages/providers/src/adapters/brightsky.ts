@@ -13,7 +13,7 @@ import {
   type Coordinates,
 } from '@invisible-city/contracts';
 import { makeEvidence, distanceMeters } from '@invisible-city/evidence';
-import { getProvider } from '../manifest.js';
+import { getEffectiveProvider } from '../manifest.js';
 import { requestFingerprint } from '../cache.js';
 import { fetchJsonWithCache, errorEnvelope, type AdapterContext } from '../runner.js';
 
@@ -60,10 +60,10 @@ export async function getWeatherContext(
   toIso: string,
   ctx: AdapterContext,
 ): Promise<ModuleEnvelope<WeatherContext>> {
-  const provider = getProvider('dwd-brightsky');
+  const provider = getEffectiveProvider('dwd-brightsky', ctx.config);
   const lat = coords.latitude.toFixed(3);
   const lon = coords.longitude.toFixed(3);
-  const url = `https://api.brightsky.dev/weather?lat=${lat}&lon=${lon}&date=${encodeURIComponent(
+  const url = `${ctx.config.brightskyUrl}/weather?lat=${lat}&lon=${lon}&date=${encodeURIComponent(
     fromIso,
   )}&last_date=${encodeURIComponent(toIso)}&units=dwd`;
   const fingerprint = requestFingerprint({ lat, lon, fromIso, toIso });

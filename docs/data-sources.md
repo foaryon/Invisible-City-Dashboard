@@ -106,39 +106,58 @@ documentation, license, attribution and technical terms before activation.
 
 ---
 
-## Proposed — present in manifest, NOT serving live (surfaced honestly as "nicht integriert")
+## Integrated — real adapters, live once configured (honest "Konfiguration erforderlich" until then)
 
-### CAMS — regional modelled air quality (`cams-eu-airquality`) — Stage 4
-- **Endpoint:** Copernicus Atmosphere Data Store, dataset
-  `cams-europe-air-quality-forecasts` (`cdsapi`). **Registration + API key required.**
+These providers have **complete, real adapter code**. Their manifest base status is
+`proposed`; `getEffectiveProvider` upgrades them to `verified` (live) automatically once the
+required configuration is present. Without it the API returns a `configuration-required`
+envelope naming the exact env var — never demo, never invented data.
+
+### CAMS — regional modelled air quality (`cams-eu-airquality`) — activate with `CAMS_ADS_KEY`
+- **Endpoint:** Copernicus Atmosphere Data Store process API,
+  `cams-europe-air-quality-forecasts`. **Registration + API key required.**
+- **Implementation:** `adapters/cams.ts` submits a small-bbox retrieval, polls the job to
+  completion, downloads the NetCDF result and extracts the **nearest grid cell** via the
+  pure, unit-tested `cams/extract.ts` (`nearestGridValue`). The value is rendered as a
+  regional grid cell (~10 km) with the cell-centre offset shown — **never** downscaled to an
+  address, **never** merged with station observations.
 - **Resolution:** 0.1° ("approximatively 10 to 20 km"). Median ensemble of 11 European
   models (CHIMERE/INERIS, EMEP/MET Norway, EURAD-IM/Jülich, LOTOS-EUROS/KNMI-TNO, MATCH/SMHI,
   MOCAGE/Météo-France, SILAM/FMI, DEHM/Aarhus, GEM-AQ/IEP-NRI, MONARCH/BSC, MINNI/ENEA).
-  Analysis + up to +96 h forecast, hourly.
 - **License:** *Licence to Use Copernicus Products* (v1.2, Nov 2019) — clear, visible
   attribution required.
 - **Attribution:** `Generated using Copernicus Atmosphere Monitoring Service information
   [Year]`; neither the European Commission nor ECMWF is responsible for any use of the data.
-- **Provider caveat to surface:** "Outputs may not be correlated enough with real
+- **Provider caveat surfaced in Evidence:** "Outputs may not be correlated enough with real
   concentrations"; "not suitable for clinical trials".
-- **TO VERIFY (blocking activation):** ADS registration, `cdsapi` retrieval, data format
-  (GRIB/NetCDF), product suitability. **Never** downscale/interpolate to an address; render
-  as a visible grid/raster only.
+- **TO VERIFY:** the ADS process-API request/response shape and NetCDF variable names against
+  a real key (not possible from the egress-blocked build env). The extraction core is tested;
+  the retrieval flow is structured per the documented API and endpoint-configurable.
 
-### DELFI — nationwide static transit (`delfi-gtfs`)
-- **Source:** NeTEx + GTFS via `https://www.opendata-oepnv.de/` (nationwide, updated
-  typically Mondays). Central Stop Directory (zHV) free to all users.
+### DELFI — nationwide static transit (`delfi-gtfs`) — activate with `GTFS_STATIC_PATH`/`GTFS_STATIC_URL`
+- **Source:** GTFS via `https://www.opendata-oepnv.de/` (nationwide, updated typically
+  Mondays). Central Stop Directory (zHV) free to all users.
+- **Implementation:** `gtfs/import.ts` imports the feed (stops, routes, trips, stop_times,
+  calendar, calendar_dates, feed_info) into SQLite; `gtfs/query.ts` does nearest-stop lookup
+  and **calendar-aware scheduled departures** (day-of-week + date range + calendar_dates
+  exceptions). Run `npm run gtfs:import --workspace apps/api -- <feed>`. Feed
+  publisher/version are preserved into Evidence. Always labelled "scheduled" — never realtime.
 - **Attribution:** `Datenquelle: DELFI e.V.`
-- **TO VERIFY (blocking activation):** registration + license terms; GTFS feed validity
-  period and stop-matching validation.
+- **TO VERIFY:** confirm opendata-oepnv registration + license for production; validate feed
+  validity window and stop-matching against a real DELFI feed. For the full nationwide feed,
+  use a regional extract (memory — see `docs/decisions.md`).
 
-### GTFS-Realtime — DELFI DEEZ / gtfs.de (`delfi-gtfs-rt`)
+### GTFS-Realtime — DELFI DEEZ / gtfs.de (`delfi-gtfs-rt`) — activate with `GTFS_RT_URL`
 - **Source:** DELFI DEEZ via the Mobilithek (GTFS-RT/SIRI; registration required) and/or the
   gtfs.de GTFS-RT stream (CC BY-SA 4.0, "ohne Gewähr"). **Coverage is PARTIAL** — only
   participating operators.
+- **Implementation:** `gtfs/realtime.ts` decodes the GTFS-RT protobuf
+  (`gtfs-realtime-bindings`) and summarizes trip-update delays and alerts **for nearby stops
+  only**. Reported coverage is `partial`; the **absence** of updates is never presented as
+  "no disruption / normal service".
 - **Attribution:** `Datenquelle: DELFI e.V.` + gtfs.de as generator.
-- **TO VERIFY (blocking activation):** document operator/area coverage before any realtime is
-  labelled `confirmed`. **Missing data must never imply "no disruption".**
+- **TO VERIFY:** document operator/area coverage before any realtime is labelled `confirmed`
+  (currently reported as `partial`).
 
 ---
 
@@ -156,11 +175,14 @@ documentation, license, attribution and technical terms before activation.
 
 ## Consolidated TO VERIFY list
 
+These are documented facts to confirm against the live services — **not** missing code. All
+adapters are implemented; runtime Zod validation makes any schema mismatch fail visibly.
+
 1. **Bright Sky** `/weather` response schema (live).
 2. **DWD WFS** geometry column (`THE_GEOM`) + warning property names (live).
 3. **UBA** array positional indices, component IDs, scope semantics, API version (v3 vs v4).
-4. **Photon** — self-host for production; swap endpoint.
-5. **CAMS** — ADS registration, `cdsapi` retrieval, data format, product suitability (Stage 4).
-6. **DELFI GTFS** — registration, license, feed validity, stop-matching (Stage 6).
-7. **GTFS-RT** — operator/area coverage documentation before any `confirmed` realtime (Stage 6).
+4. **Photon** — self-host for production; swap `PHOTON_URL`.
+5. **CAMS** — ADS process-API request/response + NetCDF variable names against a real key.
+6. **DELFI GTFS** — registration, license, feed validity, stop-matching against a real feed.
+7. **GTFS-RT** — operator/area coverage documentation before any `confirmed` realtime.
 8. **BKG VG250** boundaries — WFS integration + attribution (future enrichment).

@@ -11,8 +11,9 @@
  * any response that does not match the documented schema instead of guessing.
  */
 import { ProviderManifestEntrySchema, type ProviderManifestEntry } from '@invisible-city/contracts';
+import { isConfigured, type ProviderConfig } from './config.js';
 
-export const MANIFEST_VERSION = '2026-07-16.1';
+export const MANIFEST_VERSION = '2026-07-17.1';
 
 const entries: ProviderManifestEntry[] = [
   {
@@ -210,11 +211,11 @@ const entries: ProviderManifestEntry[] = [
     reviewDate: '2026-07-16',
     knownLimitations: [
       'Ein geplanter Halt ist keine Echtzeit-Abfahrt.',
-      'Noch nicht integriert: Registrierung, Download-Pipeline und Feed-Validierung stehen aus.',
+      'Integriert (GTFS-Import → SQLite, Servicekalender-Abfrage); live, sobald ein Feed via GTFS_STATIC_PATH/URL konfiguriert ist.',
     ],
     toVerify: [
-      'Registrierung bei opendata-oepnv.de, Lizenzbedingungen des DELFI-Datensatzes dokumentieren.',
-      'GTFS-Feed-Gültigkeitszeitraum und Stop-Matching validieren, bevor der Provider aktiviert wird.',
+      'Registrierung bei opendata-oepnv.de und Lizenzbedingungen des DELFI-Datensatzes für den Produktivbetrieb bestätigen.',
+      'Feed-Gültigkeitszeitraum und Stop-Matching gegen einen realen DELFI-Feed prüfen.',
     ],
   },
   {
@@ -237,10 +238,10 @@ const entries: ProviderManifestEntry[] = [
     reviewDate: '2026-07-16',
     knownLimitations: [
       'Abdeckung ist partiell; fehlende Meldungen bedeuten NICHT Normalbetrieb.',
-      'Noch nicht integriert.',
+      'Integriert (GTFS-RT-Protobuf-Dekodierung); live, sobald ein Stream via GTFS_RT_URL konfiguriert ist.',
     ],
     toVerify: [
-      'Betreiber-/Gebietsabdeckung des Streams dokumentieren, bevor Echtzeit je Ort als „confirmed“ gilt.',
+      'Betreiber-/Gebietsabdeckung des Streams dokumentieren, bevor Echtzeit je Ort als „confirmed“ (statt „partial“) gilt.',
     ],
   },
   {
@@ -264,10 +265,10 @@ const entries: ProviderManifestEntry[] = [
     knownLimitations: [
       'Median-Ensemble aus 11 europäischen Modellen; Rasterwert (~10 km) ist keine Adress-Konzentration.',
       'Anbieter-Hinweis: „Outputs may not be correlated enough with real concentrations“; „not suitable for clinical trials“.',
-      'Noch nicht integriert: API-Key, Abruf und Produkteignung sind nicht verifiziert.',
+      'Integriert (ADS-Abruf + NetCDF-Rasterzelle); live, sobald CAMS_ADS_KEY konfiguriert ist.',
     ],
     toVerify: [
-      'ADS-Registrierung, cdsapi-Abruf, Datenformat (GRIB/NetCDF) und Produkteignung verifizieren (Stage 4).',
+      'ADS-Prozess-API-Request/-Response und NetCDF-Variablennamen gegen einen realen ADS-Schlüssel verifizieren (aus dem Build-Umfeld nicht möglich).',
     ],
   },
 ];
@@ -282,7 +283,38 @@ export function getProvider(providerId: string): ProviderManifestEntry {
   return entry;
 }
 
-/** Only "verified" providers may serve live production responses (§5.2). */
-export function isLiveAllowed(providerId: string): boolean {
-  return getProvider(providerId).status === 'verified';
+/**
+ * The manifest entry resolved against runtime configuration. Providers whose
+ * base status is "proposed" are upgraded to "verified" (live) once their
+ * required configuration is present; the technical endpoint is filled from
+ * config so self-hosted instances can be used. Nothing else about the entry
+ * (license, attribution, limitations) changes.
+ */
+export function getEffectiveProvider(
+  providerId: string,
+  config: ProviderConfig,
+): ProviderManifestEntry {
+  const base = getProvider(providerId);
+  const configured = isConfigured(providerId, config);
+  const endpoint = EFFECTIVE_ENDPOINT[providerId]?.(config) ?? base.technicalEndpoint;
+  const status: ProviderManifestEntry['status'] =
+    base.status === 'proposed' && configured ? 'verified' : base.status;
+  return { ...base, status, technicalEndpoint: endpoint };
+}
+
+/** Config-derived endpoints per provider (self-hosting friendly). */
+const EFFECTIVE_ENDPOINT: Record<string, (c: ProviderConfig) => string> = {
+  'dwd-brightsky': (c) => `${c.brightskyUrl}/weather`,
+  'dwd-warnings': (c) => c.dwdWfsUrl,
+  'uba-airdata': (c) => c.ubaBaseUrl,
+  'osm-overpass': (c) => c.overpassUrl,
+  'photon-geocoding': (c) => `${c.photonUrl}/api`,
+  'cams-eu-airquality': (c) => c.camsApiUrl,
+  'delfi-gtfs': (c) => c.gtfsStaticUrl ?? c.gtfsStaticPath ?? c.gtfsDbPath,
+  'delfi-gtfs-rt': (c) => c.gtfsRtUrl ?? '(nicht konfiguriert)',
+};
+
+/** Only "verified" (incl. config-activated) providers may serve live responses (§5.2). */
+export function isLiveAllowed(providerId: string, config: ProviderConfig): boolean {
+  return getEffectiveProvider(providerId, config).status === 'verified';
 }

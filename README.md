@@ -18,19 +18,24 @@ successful product outcome.**
 
 ## What it shows
 
-| Layer | Source | Data mode | Spatial meaning |
+| Layer | Source | Data mode | Activation |
 | --- | --- | --- | --- |
-| Weather & forecast | DWD (via Bright Sky, unofficial JSON access layer) | observed / forecast | nearest station / MOSMIX point — not the pin |
-| Official warnings | DWD GeoServer WFS (`Warnungen_Gemeinden`) | source-defined areas | municipality polygons |
-| Air quality (stations) | Umweltbundesamt / Länder (Air Data API) | observed | point markers, **no interpolation** |
-| Air quality (regional model) | CAMS (Copernicus) — **not activated in V1** | modelled | ~10 km grid |
-| Place & POI context | OpenStreetMap (Overpass) | mapped | mapped geometry, not operational status |
-| Transit context | OSM stops (mapped); DELFI GTFS / GTFS-RT — **not activated in V1** | mapped / scheduled / realtime | availability, **not operation** |
-| Geocoding | Photon (OSM data) | mapped | search + reverse |
-| Base map | OpenFreeMap (OSM data) | mapped | cartographic context |
+| Weather & forecast | DWD (via Bright Sky, unofficial JSON access layer) | observed / forecast | live (keyless) |
+| Official warnings | DWD GeoServer WFS (`Warnungen_Gemeinden`) | source-defined areas | live (keyless) |
+| Air quality (stations) | Umweltbundesamt / Länder (Air Data API) | observed | live (keyless) |
+| Air quality (regional model) | CAMS (Copernicus ADS, NetCDF) | modelled, ~10 km grid | live when `CAMS_ADS_KEY` set |
+| Place & POI context | OpenStreetMap (Overpass) | mapped | live (keyless) |
+| Transit — stops | OSM (mapped) / DELFI GTFS | mapped / scheduled | stops live; departures when GTFS imported |
+| Transit — scheduled | DELFI GTFS (imported to SQLite) | scheduled | live when `GTFS_STATIC_PATH` set |
+| Transit — realtime | DELFI DEEZ / gtfs.de GTFS-RT | realtime (partial) | live when `GTFS_RT_URL` set |
+| Geocoding | Photon (OSM data) | mapped | live (keyless) |
+| Base map | OpenFreeMap (OSM data) | mapped | live (keyless) |
 
-Providers marked *not activated* are present in the manifest with status `proposed` and
-are surfaced honestly in the UI as **"nicht integriert"** — never faked.
+**Every adapter is real, config-driven code.** Keyless providers are live out of the box.
+CAMS and DELFI need a credential/feed (a Copernicus key, an opendata-oepnv registration) —
+until that is configured the UI reports **"Konfiguration erforderlich"** with the exact env
+var needed. It is **never** faked, and never demo. Check `/api/readiness` for per-provider
+live status.
 
 ---
 
@@ -118,15 +123,46 @@ Try it:
 
 ---
 
+## Production deployment
+
+The API serves both `/api/*` and the built SPA — one process, one image. Live is the
+default; demo is off unless `ENABLE_DEMO=1`.
+
+```bash
+npm ci
+npm run build --workspace apps/web        # build the SPA
+npm run start --workspace apps/api        # API serves API + SPA on :3001
+
+# …or with Docker:
+docker build -t invisible-city .
+docker run -p 3001:3001 --env-file .env invisible-city
+```
+
+Copy `.env.example` → `.env` and set only what you want to activate. See
+[`docs/data-sources.md`](docs/data-sources.md) for the CAMS/DELFI registration steps.
+
+### Importing a DELFI GTFS feed (activates scheduled departures)
+
+```bash
+npm run gtfs:import --workspace apps/api -- <path-or-url-to-gtfs.zip>
+# then set GTFS_STATIC_PATH so the transit provider goes live
+```
+
 ## Environment variables
 
-| Var | Default | Used by |
+| Var | Default | Purpose |
 | --- | --- | --- |
-| `PORT` | `3001` | API listen port |
-| `CACHE_DB` | `var/cache.sqlite` | SQLite cache location |
+| `PORT` / `HOST` | `3001` / `127.0.0.1` | API listen address (`HOST=0.0.0.0` in Docker) |
+| `CACHE_DB` | `var/cache.sqlite` | SQLite response cache |
+| `WEB_ROOT` | `apps/web/dist` | built SPA to serve (auto-detected) |
+| `ENABLE_DEMO` | `0` | dev-only demo toggle; never enable in production |
+| `BRIGHTSKY_URL` / `DWD_WFS_URL` / `UBA_BASE_URL` / `OVERPASS_URL` / `PHOTON_URL` | public services | override for self-hosting |
+| `CAMS_ADS_URL` / `CAMS_ADS_KEY` | ADS / — | activate CAMS regional model |
+| `GTFS_STATIC_PATH` / `GTFS_STATIC_URL` / `GTFS_DB` | — / — / `var/gtfs.sqlite` | activate scheduled transit |
+| `GTFS_RT_URL` / `GTFS_RT_KEY` | — | activate GTFS-realtime |
 
-**No secrets live in the frontend.** V1 activates no key-gated provider. If CAMS is
-activated later, its key stays server-side only.
+**No secrets live in the frontend.** All keys stay server-side; the browser only ever talks
+to this API (plus the base-map tile host).
 
 ---
 

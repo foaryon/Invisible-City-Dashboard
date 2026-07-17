@@ -74,8 +74,12 @@ test('layer switching updates the legend and keeps one primary layer', async ({ 
   await expect(page.getByRole('complementary', { name: /Legende/ })).toContainText(
     'regionale Referenz',
   );
-  // Not-integrated layer is disabled, not fakeable.
-  await expect(page.getByRole('button', { name: /Regionales Modell/ })).toBeDisabled();
+  // Switching to the CAMS layer updates the legend to grid semantics.
+  const camsBtn = page.getByRole('button', { name: /Regionales Modell/ });
+  await camsBtn.click();
+  await expect(camsBtn).toHaveAttribute('aria-pressed', 'true');
+  await expect(airBtn).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.getByRole('complementary', { name: /Legende/ })).toContainText('Rasterzelle');
 });
 
 test('evidence inspector opens with source, mode and limitations', async ({ page }) => {
@@ -107,7 +111,8 @@ test('A/B/C comparison shows data mode beside values and no overall score', asyn
   await expect(table).toContainText('Temperatur');
   await expect(table).toContainText('PM2.5');
   // Data-mode chip is shown beside values (fixture data is observed → "Gemessen").
-  await expect(table.getByText('Gemessen').first()).toBeVisible();
+  // The compare bundle fetches several endpoints in parallel with the lens; allow time.
+  await expect(table.getByText('Gemessen').first()).toBeVisible({ timeout: 30_000 });
   // No forbidden ranking language / overall score.
   await expect(page.getByText(/beste Gegend/i)).toHaveCount(0);
 });

@@ -7,9 +7,11 @@
 import { type ProviderManifestEntry, type ModuleEnvelope } from '@invisible-city/contracts';
 import { policedFetch, ProviderHttpError, type FetchLike } from './http.js';
 import { type ResponseCache } from './cache.js';
+import { type ProviderConfig } from './config.js';
 
 export interface AdapterContext {
   cache: ResponseCache;
+  config: ProviderConfig;
   fetchImpl?: FetchLike;
 }
 
