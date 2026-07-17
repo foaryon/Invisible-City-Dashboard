@@ -12,6 +12,8 @@ export default tseslint.config(
       'playwright-report/**',
       'test-results/**',
       '**/*.d.ts',
+      // Browser service worker (its own runtime globals) — shipped as a static asset.
+      'apps/web/public/**',
     ],
   },
   js.configs.recommended,
@@ -31,6 +33,16 @@ export default tseslint.config(
     plugins: { 'react-hooks': reactHooks },
     rules: {
       ...reactHooks.configs.recommended.rules,
+    },
+  },
+  {
+    // Node build/utility scripts (plain ESM with Node globals).
+    files: ['scripts/**/*.mjs'],
+    languageOptions: {
+      globals: { Buffer: 'readonly', process: 'readonly', console: 'readonly', URL: 'readonly' },
+    },
+    rules: {
+      'no-console': 'off',
     },
   },
   {
