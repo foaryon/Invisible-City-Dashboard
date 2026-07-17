@@ -40,7 +40,7 @@ config-driven code.
 | Gamma dose rate (radiation) | BfS ODL network (~1,700 probes) | observed | live (keyless) |
 | Pollen hazard index | DWD (per forecast partregion) | forecast | live (keyless) |
 | UV index | DWD (reference locations) | forecast | live (keyless) |
-| Reported releases incl. GHG | Thru.de / PRTR (UBA) | reported (annual declarations) | live when `PRTR_CSV_PATH` set |
+| Reported releases incl. GHG | Thru.de / PRTR (UBA) | reported (annual declarations) | live when `PRTR_CSV_PATH` or `PRTR_CSV_URL` set |
 
 **Every adapter is real, config-driven code.** Keyless providers are live out of the box.
 CAMS, DELFI and Thru.de/PRTR are fully implemented but need a credential/feed/export (a
