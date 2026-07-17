@@ -15,6 +15,17 @@ export interface ProviderConfig {
   ubaBaseUrl: string;
   overpassUrl: string;
   photonUrl: string;
+  /** PEGELONLINE REST API base (WSV water levels). */
+  pegelonlineUrl: string;
+  /** BfS ODL open-data WFS endpoint (gamma dose rate). */
+  odlUrl: string;
+  /** DWD open-data health alerts base (pollen s31fg.json, UV uvi.json). */
+  dwdHealthUrl: string;
+
+  // Thru.de / PRTR reported releases — requires a downloaded CSV export.
+  prtrCsvPath?: string;
+  /** Where the imported PRTR SQLite database lives. */
+  prtrDbPath: string;
 
   // CAMS regional air-quality model (Copernicus ADS/CDS) — requires an API key.
   camsApiUrl: string;
@@ -51,12 +62,26 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ProviderConfig
     ubaBaseUrl: str(env, 'UBA_BASE_URL', 'https://luftdaten.umweltbundesamt.de/api/air_data/v3'),
     overpassUrl: str(env, 'OVERPASS_URL', 'https://overpass-api.de/api/interpreter'),
     photonUrl: str(env, 'PHOTON_URL', 'https://photon.komoot.io'),
+    pegelonlineUrl: str(
+      env,
+      'PEGELONLINE_URL',
+      'https://www.pegelonline.wsv.de/webservices/rest-api/v2',
+    ),
+    odlUrl: str(env, 'BFS_ODL_URL', 'https://www.imis.bfs.de/ogc/opendata/ows'),
+    dwdHealthUrl: str(
+      env,
+      'DWD_HEALTH_URL',
+      'https://opendata.dwd.de/climate_environment/health/alerts',
+    ),
     camsApiUrl: str(env, 'CAMS_ADS_URL', 'https://ads.atmosphere.copernicus.eu/api'),
     gtfsDbPath: str(env, 'GTFS_DB', 'var/gtfs.sqlite'),
+    prtrDbPath: str(env, 'PRTR_DB', 'var/prtr.sqlite'),
     enableDemo: env['ENABLE_DEMO'] === '1' || env['ENABLE_DEMO'] === 'true',
   };
   const camsApiKey = optional(env, 'CAMS_ADS_KEY');
   if (camsApiKey) config.camsApiKey = camsApiKey;
+  const prtrCsvPath = optional(env, 'PRTR_CSV_PATH');
+  if (prtrCsvPath) config.prtrCsvPath = prtrCsvPath;
   const gtfsStaticPath = optional(env, 'GTFS_STATIC_PATH');
   if (gtfsStaticPath) config.gtfsStaticPath = gtfsStaticPath;
   const gtfsStaticUrl = optional(env, 'GTFS_STATIC_URL');
@@ -76,6 +101,7 @@ const ACTIVATION: Record<string, (c: ProviderConfig) => boolean> = {
   'cams-eu-airquality': (c) => !!c.camsApiKey,
   'delfi-gtfs': (c) => !!(c.gtfsStaticPath || c.gtfsStaticUrl),
   'delfi-gtfs-rt': (c) => !!c.gtfsRtUrl,
+  'thru-prtr': (c) => !!c.prtrCsvPath,
 };
 
 export function isConfigured(providerId: string, config: ProviderConfig): boolean {
@@ -88,6 +114,7 @@ export const REQUIRED_ENV: Record<string, string[]> = {
   'cams-eu-airquality': ['CAMS_ADS_KEY'],
   'delfi-gtfs': ['GTFS_STATIC_PATH or GTFS_STATIC_URL'],
   'delfi-gtfs-rt': ['GTFS_RT_URL'],
+  'thru-prtr': ['PRTR_CSV_PATH'],
 };
 
 /** Config with all public defaults and demo enabled — used by the demo runtime and tests. */

@@ -2,7 +2,7 @@ import { analyticalLayers, type AnalyticalLayerId } from '@invisible-city/map-st
 import { useAppStore } from '../state/store.js';
 
 export function LayerSwitch() {
-  const { activeLayer, setLayer } = useAppStore();
+  const { activeLayer, setLayer, radarOverlay, setRadarOverlay } = useAppStore();
   return (
     <nav className="layer-switch" aria-label="Analytische Kartenebene wählen">
       <span className="panel-title" style={{ margin: '2px 6px 4px' }}>
@@ -21,6 +21,17 @@ export function LayerSwitch() {
           {!layer.enabled ? ' · n. integriert' : ''}
         </button>
       ))}
+      <span className="panel-title" style={{ margin: '6px 6px 4px' }}>
+        Overlay
+      </span>
+      <button
+        type="button"
+        aria-pressed={radarOverlay}
+        onClick={() => setRadarOverlay(!radarOverlay)}
+        title="Niederschlagsradar-Komposit (RADOLAN, 1 km) als Kartenoverlay — Quelle: Deutscher Wetterdienst. Rasterbild, kein Punktwert."
+      >
+        Regenradar-Overlay{radarOverlay ? ' · an' : ''}
+      </button>
     </nav>
   );
 }

@@ -1,7 +1,7 @@
 # Data sources & provider manifest
 
 The machine-readable manifest is `packages/providers/src/manifest.ts`
-(version **`2026-07-16.1`**). Only providers with status **`verified`** serve live
+(version **`2026-07-17.2`**). Only providers with status **`verified`** serve live
 production responses. This document summarises each provider's license, attribution,
 coverage, cache policy and **open verification tasks**.
 
@@ -104,6 +104,65 @@ documentation, license, attribution and technical terms before activation.
 - **Alternative:** basemap.de Web Vektor (BKG, CC BY 4.0, geldleistungsfrei). One primary
   base map is chosen; both are advertising-free.
 
+### WSV — water levels via PEGELONLINE (`pegelonline-wsv`)
+- **Endpoint:** `https://www.pegelonline.wsv.de/webservices/rest-api/v2/stations.json` with
+  radius filter and `includeCurrentMeasurement=true` (JSON, no API key).
+- **License:** Datenlizenz Deutschland – Zero – 2.0 (**TO VERIFY** against current terms).
+- **Attribution:** `Quelle: WSV / PEGELONLINE`.
+- **Semantics:** raw gauge readings (typically 15-min cadence) at FEDERAL waterways only; a
+  gauge value holds at its gauge on its waterway — no transfer to other waters/places, and
+  **no flood-warning status** (that is the Länder Hochwasserzentralen's mandate).
+- **Cache TTL:** 300 s.
+- **TO VERIFY:** response schema live; license wording.
+
+### BfS — gamma dose rate, ODL network (`bfs-odl`)
+- **Endpoint:** `https://www.imis.bfs.de/ogc/opendata/ows`, WFS GetFeature layer
+  `opendata:odlinfo_odl_1h_latest` (GeoJSON). The FULL layer (~1,700 probes) is fetched and
+  cached once (15 min); nearest probes are selected locally — this sidesteps WFS bbox
+  axis-order pitfalls entirely.
+- **License:** dl-de/by-2-0. **Attribution:** `Quelle: Bundesamt für Strahlenschutz (BfS),
+  ODL-Messnetz`.
+- **Semantics:** 1-h mean gamma ambient dose rate (µSv/h) at the probe site. Natural
+  fluctuation (geology, altitude, rain washout) is stated in every Evidence record; an
+  elevated single value is never rendered as a hazard claim.
+- **TO VERIFY:** WFS property names (`kenn`, `name`, `value`, `unit`, `end_measure`,
+  `site_status_text`); unit semantics.
+
+### DWD — pollen hazard index (`dwd-pollen`)
+- **Endpoint:** `https://opendata.dwd.de/climate_environment/health/alerts/s31fg.json`
+  (daily, ~11:00; today/tomorrow/day-after per allergen).
+- **Semantics:** index per LARGE forecast partregion (27 nationwide). Assignment is via the
+  place's **Bundesland** (text match against source region names); when a Bundesland spans
+  several partregions **all** are shown — no silent pick, no polygon guessing. Index strings
+  ("0"…"3", halves like "0-1") and the source legend are passed through verbatim.
+- **License/attribution:** CC BY 4.0; `Quelle: Deutscher Wetterdienst`.
+- **TO VERIFY:** response schema live; optionally refine assignment with the official region
+  polygons.
+
+### DWD — UV index forecast (`dwd-uvi`)
+- **Endpoint:** `https://opendata.dwd.de/climate_environment/health/alerts/uvi.json`
+  (daily maxima for a small set of named reference locations; no coordinates in the payload).
+- **Semantics:** nearest REFERENCE location via a documented product-side coordinate table
+  (`adapters/uvi.ts`, `UV_CITY_COORDS`); unmatched source locations are skipped, never
+  guessed. Distance to the reference location is always shown (usually far → regional
+  reference).
+- **License/attribution:** CC BY 4.0; `Quelle: Deutscher Wetterdienst`.
+- **TO VERIFY:** response schema live; reconcile source location names with the coordinate
+  table.
+
+### DWD — precipitation radar (`dwd-radar`)
+- **Endpoints:** point/nowcast series via Bright Sky `https://api.brightsky.dev/radar`
+  (RADOLAN composite, 1 km, 5-min cadence, incl. 2-h nowcast; unofficial access layer,
+  labelled); map overlay via DWD GeoServer WMS `https://maps.dwd.de/geoserver/dwd/wms`,
+  layer `dwd:Niederschlagsradar` (toggle in the layer controls, DWD attribution on the map).
+- **Semantics:** value of the 1-km grid CELL containing the pin (never a point value);
+  frames after retrieval time are nowcast and mode-discriminated `forecast`. Source values
+  (documented: hundredths of mm per 5 min) are converted to mm/5 min by the documented
+  factor, stated in the Evidence method.
+- **License/attribution:** data CC BY 4.0 (DWD); `Quelle: Deutscher Wetterdienst`.
+- **TO VERIFY:** unit scaling and `distance`/`latlon_position` parameter semantics live;
+  WMS layer name for the overlay.
+
 ---
 
 ## Integrated — real adapters, live once configured (honest "Konfiguration erforderlich" until then)
@@ -159,6 +218,23 @@ envelope naming the exact env var — never demo, never invented data.
 - **TO VERIFY:** document operator/area coverage before any realtime is labelled `confirmed`
   (currently reported as `partial`).
 
+### Thru.de / PRTR — reported industrial releases (`thru-prtr`) — activate with `PRTR_CSV_PATH`
+- **Source:** the German Pollutant Release and Transfer Register (UBA, `https://www.thru.de`)
+  — statutory ANNUAL declarations by facilities above thresholds, incl. greenhouse gases
+  (CO2, CH4, N2O), with facility coordinates. This is the one credible, place-based
+  greenhouse-gas angle: aggregated national/Länder inventories have no honest spatial
+  relation to a pin and are deliberately **not** integrated.
+- **Implementation:** download a CSV export from Thru.de, set `PRTR_CSV_PATH`;
+  `prtr/import.ts` imports it into SQLite (documented, deterministic column detection —
+  unknown columns make the import fail VISIBLY listing the headers found), and
+  `adapters/emitters.ts` answers 10-km radius queries showing each facility's latest
+  reporting year. Data mode is **`reported`** — a declaration, never a measurement,
+  concentration or current condition. Absence of facilities is explicitly rendered as "does
+  NOT mean zero emissions" (thresholds).
+- **License:** dl-de/by-2-0 (**TO VERIFY**). **Attribution:** `Quelle: Thru.de /
+  Umweltbundesamt`.
+- **TO VERIFY:** CSV export column names against the import detection; license wording.
+
 ---
 
 ## Attribution strings (as rendered)
@@ -169,6 +245,10 @@ envelope naming the exact env var — never demo, never invented data.
 | UBA | `Umweltbundesamt` |
 | OSM (Overpass, Photon) | `© OpenStreetMap contributors` (ODbL) |
 | OpenFreeMap | `OpenFreeMap © OpenMapTiles Data from OpenStreetMap` |
+| WSV/PEGELONLINE | `Quelle: WSV / PEGELONLINE` |
+| BfS ODL | `Quelle: Bundesamt für Strahlenschutz (BfS), ODL-Messnetz` |
+| DWD (pollen, UV, radar) | `Quelle: Deutscher Wetterdienst` |
+| Thru.de/PRTR | `Quelle: Thru.de / Umweltbundesamt` |
 | CAMS (future) | `Generated using Copernicus Atmosphere Monitoring Service information 2026` |
 | DELFI (future) | `Datenquelle: DELFI e.V.` |
 | BKG VG250 (future) | `© BKG (Jahr) dl-de/by-2-0` |
@@ -186,3 +266,9 @@ adapters are implemented; runtime Zod validation makes any schema mismatch fail 
 6. **DELFI GTFS** — registration, license, feed validity, stop-matching against a real feed.
 7. **GTFS-RT** — operator/area coverage documentation before any `confirmed` realtime.
 8. **BKG VG250** boundaries — WFS integration + attribution (future enrichment).
+9. **PEGELONLINE** — `stations.json` response schema + dl-de/zero-2-0 license wording (live).
+10. **BfS ODL** — WFS property names + unit semantics (live).
+11. **DWD pollen** — `s31fg.json` schema; optional polygon-based partregion assignment.
+12. **DWD UV** — `uvi.json` schema; reconcile location names with the coordinate table.
+13. **DWD radar** — Bright Sky `/radar` unit scaling + parameters; WMS overlay layer name.
+14. **Thru.de/PRTR** — CSV export column names against the import detection; license.

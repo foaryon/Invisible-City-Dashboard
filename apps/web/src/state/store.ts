@@ -16,6 +16,8 @@ interface AppState {
   timeOffsetHours: number;
   /** Opt-in demo mode — permanently labelled while active (§3.1.J). */
   demoMode: boolean;
+  /** DWD precipitation-radar map overlay (WMS raster), off by default. */
+  radarOverlay: boolean;
   inspector: InspectorTarget | null;
   mobilePanel: 'lens' | 'inspector' | null;
 
@@ -24,6 +26,7 @@ interface AppState {
   setLayer: (layer: AnalyticalLayerId) => void;
   setTimeOffset: (hours: number) => void;
   setDemoMode: (on: boolean) => void;
+  setRadarOverlay: (on: boolean) => void;
   inspect: (target: InspectorTarget | null) => void;
   setMobilePanel: (panel: 'lens' | 'inspector' | null) => void;
 }
@@ -34,6 +37,7 @@ export const useAppStore = create<AppState>((set) => ({
   activeLayer: 'weather',
   timeOffsetHours: 0,
   demoMode: false,
+  radarOverlay: false,
   inspector: null,
   mobilePanel: null,
 
@@ -48,6 +52,7 @@ export const useAppStore = create<AppState>((set) => ({
   setLayer: (layer) => set({ activeLayer: layer }),
   setTimeOffset: (hours) => set({ timeOffsetHours: Math.max(0, Math.min(48, hours)) }),
   setDemoMode: (on) => set({ demoMode: on, inspector: null }),
+  setRadarOverlay: (on) => set({ radarOverlay: on }),
   inspect: (target) => set({ inspector: target, mobilePanel: target ? 'inspector' : null }),
   setMobilePanel: (panel) => set({ mobilePanel: panel }),
 }));

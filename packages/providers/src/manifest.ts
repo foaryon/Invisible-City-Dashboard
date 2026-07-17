@@ -13,7 +13,7 @@
 import { ProviderManifestEntrySchema, type ProviderManifestEntry } from '@invisible-city/contracts';
 import { isConfigured, type ProviderConfig } from './config.js';
 
-export const MANIFEST_VERSION = '2026-07-17.1';
+export const MANIFEST_VERSION = '2026-07-17.2';
 
 const entries: ProviderManifestEntry[] = [
   {
@@ -271,6 +271,196 @@ const entries: ProviderManifestEntry[] = [
       'ADS-Prozess-API-Request/-Response und NetCDF-Variablennamen gegen einen realen ADS-Schlüssel verifizieren (aus dem Build-Umfeld nicht möglich).',
     ],
   },
+  {
+    providerId: 'pegelonline-wsv',
+    displayName: 'PEGELONLINE Wasserstände (WSV)',
+    institution: 'Wasserstraßen- und Schifffahrtsverwaltung des Bundes (WSV)',
+    sourceCategory: 'federal-authority',
+    originalSourceUrl: 'https://www.pegelonline.wsv.de',
+    technicalEndpoint:
+      'https://www.pegelonline.wsv.de/webservices/rest-api/v2 (stations.json, Umkreisfilter, includeCurrentMeasurement)',
+    accessMethod: 'HTTPS GET, JSON, kein API-Key',
+    license: 'Datenlizenz Deutschland – Zero – 2.0 (dl-de/zero-2-0)',
+    attributionText: 'Quelle: WSV / PEGELONLINE',
+    coverage: 'Pegel an Bundeswasserstraßen (~600 Stationen); Landesgewässer sind NICHT enthalten',
+    updateCadence: 'Rohdaten, i. d. R. alle 15 Minuten; Vorhaltung online 30 Tage',
+    supportedDataModes: ['observed'],
+    geographicSemantics: ['station'],
+    validationSchemaVersion: 'pegelonline-v2',
+    cachePolicy: {
+      ttlSeconds: 300,
+      rationale: 'Messwerte erscheinen ~alle 15 Minuten; kurzer Cache begrenzt Last.',
+    },
+    status: 'verified',
+    reviewDate: '2026-07-17',
+    knownLimitations: [
+      'Ein Pegelwert gilt für den Pegelstandort am jeweiligen Gewässer — keine Übertragung auf andere Gewässer oder Orte.',
+      'Rohdaten ohne abschließende Prüfung; kein Hochwasser-Warnstatus (amtliche Hochwasserwarnungen erteilen die Hochwasserzentralen der Länder).',
+      'Nur Bundeswasserstraßen — ein fehlender Pegel bedeutet nicht, dass kein Gewässer in der Nähe ist.',
+    ],
+    toVerify: [
+      'Antwortschema (stations.json inkl. currentMeasurement) live re-verifizieren (Egress im Build-Umfeld blockiert, 2026-07-17).',
+      'Lizenzangabe dl-de/zero-2-0 gegen die aktuellen PEGELONLINE-Nutzungsbedingungen bestätigen.',
+    ],
+  },
+  {
+    providerId: 'bfs-odl',
+    displayName: 'BfS ODL-Messnetz (Gamma-Ortsdosisleistung)',
+    institution: 'Bundesamt für Strahlenschutz (BfS)',
+    sourceCategory: 'federal-authority',
+    originalSourceUrl: 'https://odlinfo.bfs.de',
+    technicalEndpoint:
+      'https://www.imis.bfs.de/ogc/opendata/ows (WFS GetFeature, Layer opendata:odlinfo_odl_1h_latest, GeoJSON)',
+    accessMethod: 'HTTPS GET (WFS GetFeature), GeoJSON, kein API-Key',
+    license: 'Datenlizenz Deutschland Namensnennung 2.0 (dl-de/by-2-0)',
+    attributionText: 'Quelle: Bundesamt für Strahlenschutz (BfS), ODL-Messnetz',
+    coverage: 'Deutschland, ~1.700 ODL-Sonden',
+    updateCadence: 'stündlich (1-h-Mittelwerte)',
+    supportedDataModes: ['observed'],
+    geographicSemantics: ['station'],
+    validationSchemaVersion: 'bfs-odl-wfs-v1',
+    cachePolicy: {
+      ttlSeconds: 900,
+      rationale:
+        'Stündliche 1-h-Mittelwerte; der komplette Layer wird einmal geladen und lokal gefiltert — 15-Minuten-Cache begrenzt Last.',
+    },
+    status: 'verified',
+    reviewDate: '2026-07-17',
+    knownLimitations: [
+      'Die Gamma-Ortsdosisleistung schwankt natürlich (Gestein, Höhe; Regen kann Werte vorübergehend natürlich erhöhen) — ein erhöhter Einzelwert ist keine Gefahrenaussage.',
+      'Messwert gilt am Sondenstandort; keine Interpolation zwischen Sonden.',
+      'Sonden können zeitweise ausfallen oder in Wartung sein (Status wird mitgeliefert).',
+    ],
+    toVerify: [
+      'WFS-Property-Namen (kenn, name, value, unit, end_measure, site_status) live re-verifizieren.',
+      'Einheit (µSv/h) und Bedeutung des 1-h-Mittelwerts gegen die BfS-Dokumentation bestätigen.',
+    ],
+  },
+  {
+    providerId: 'dwd-pollen',
+    displayName: 'DWD Pollenflug-Gefahrenindex',
+    institution: 'Deutscher Wetterdienst',
+    sourceCategory: 'federal-authority',
+    originalSourceUrl: 'https://www.dwd.de',
+    technicalEndpoint: 'https://opendata.dwd.de/climate_environment/health/alerts/s31fg.json',
+    accessMethod: 'HTTPS GET, JSON, kein API-Key',
+    license: 'CC BY 4.0 (DWD)',
+    attributionText: 'Quelle: Deutscher Wetterdienst',
+    coverage: 'Deutschland, 27 Pollenflug-Teilregionen (Großregionen)',
+    updateCadence: 'täglich (ca. 11 Uhr), Vorhersage heute/morgen/übermorgen',
+    supportedDataModes: ['forecast'],
+    geographicSemantics: ['coverage'],
+    validationSchemaVersion: 'dwd-pollen-v1',
+    cachePolicy: {
+      ttlSeconds: 10800,
+      rationale: 'Tägliche Ausgabe; 3-h-Cache genügt und begrenzt Last.',
+    },
+    status: 'verified',
+    reviewDate: '2026-07-17',
+    knownLimitations: [
+      'Der Gefahrenindex gilt je GROSSREGION (Teilregion eines Bundeslandes) — kein Ortswert, keine lokale Konzentration.',
+      'Die Zuordnung des gewählten Orts erfolgt über das Bundesland; umfasst ein Bundesland mehrere Teilregionen, werden alle angezeigt (nicht punktgenau).',
+      'Indexstufen (0–3) sind quellendefinierte Belastungsklassen, keine Messwerte.',
+    ],
+    toVerify: [
+      'Antwortschema (content/Pollen/legend) live re-verifizieren.',
+      'Teilregions-Zuordnung optional über die amtlichen Regionspolygone präzisieren (statt Bundesland-Textabgleich).',
+    ],
+  },
+  {
+    providerId: 'dwd-uvi',
+    displayName: 'DWD UV-Index-Vorhersage',
+    institution: 'Deutscher Wetterdienst',
+    sourceCategory: 'federal-authority',
+    originalSourceUrl: 'https://www.dwd.de',
+    technicalEndpoint: 'https://opendata.dwd.de/climate_environment/health/alerts/uvi.json',
+    accessMethod: 'HTTPS GET, JSON, kein API-Key',
+    license: 'CC BY 4.0 (DWD)',
+    attributionText: 'Quelle: Deutscher Wetterdienst',
+    coverage: 'Ausgewählte Vorhersageorte in Deutschland (wenige Referenzstandorte)',
+    updateCadence: 'täglich, Vorhersage heute/morgen/übermorgen (Tagesmaximum)',
+    supportedDataModes: ['forecast'],
+    geographicSemantics: ['station'],
+    validationSchemaVersion: 'dwd-uvi-v1',
+    cachePolicy: {
+      ttlSeconds: 10800,
+      rationale: 'Tägliche Ausgabe; 3-h-Cache genügt und begrenzt Last.',
+    },
+    status: 'verified',
+    reviewDate: '2026-07-17',
+    knownLimitations: [
+      'Der UV-Index wird nur für wenige Referenzorte ausgegeben — der angezeigte Wert ist der des NÄCHSTGELEGENEN Vorhersageorts, oft weit entfernt (regionale Referenz).',
+      'Tagesmaximum-Vorhersage; die tatsächliche UV-Belastung hängt von Bewölkung, Höhe und Tageszeit ab.',
+      'Die Koordinaten der Vorhersageorte stammen aus einer dokumentierten produktseitigen Zuordnungstabelle (die Quelle liefert nur Ortsnamen).',
+    ],
+    toVerify: [
+      'Antwortschema (content[].city/forecast) live re-verifizieren.',
+      'Ortsnamen der Quelle gegen die produktseitige Koordinatentabelle abgleichen (nicht zugeordnete Orte werden ausgelassen).',
+    ],
+  },
+  {
+    providerId: 'dwd-radar',
+    displayName: 'DWD Regenradar (RADOLAN, über Bright Sky)',
+    institution: 'Deutscher Wetterdienst (Daten); Bright Sky / Jakob de Maeyer (Zugangsschicht)',
+    sourceCategory: 'unofficial-access-layer',
+    originalSourceUrl: 'https://opendata.dwd.de',
+    technicalEndpoint:
+      'https://api.brightsky.dev/radar (Punktabfrage); Karten-Overlay: https://maps.dwd.de/geoserver/dwd/wms (Layer dwd:Niederschlagsradar)',
+    accessMethod: 'HTTPS GET, JSON (Rasterausschnitt), kein API-Key',
+    license: 'Daten: CC BY 4.0 (DWD); Zugangsschicht: MIT (Open Source)',
+    attributionText: 'Quelle: Deutscher Wetterdienst',
+    coverage: 'Deutschland, 1-km-Radarkomposit (RADOLAN), inkl. 2-h-Nowcast',
+    updateCadence: 'alle 5 Minuten',
+    supportedDataModes: ['observed', 'forecast'],
+    geographicSemantics: ['grid'],
+    validationSchemaVersion: 'brightsky-radar-v1',
+    cachePolicy: {
+      ttlSeconds: 300,
+      rationale: '5-Minuten-Produkt; Cache auf Produktzyklus begrenzt Last.',
+    },
+    status: 'verified',
+    reviewDate: '2026-07-17',
+    knownLimitations: [
+      'Radar misst Reflektivität; die Umrechnung in Niederschlag ist quellenseitig aneichgestützt — kein Regenmesser-Ersatz.',
+      'Wert der 1-km-Rasterzelle, kein Punktwert am Pin.',
+      'Zukünftige Frames sind Kurzfrist-PROGNOSE (Nowcast), getrennt gekennzeichnet — keine Beobachtung.',
+      'Bright Sky ist eine INOFFIZIELLE Zugangsschicht über DWD-Daten.',
+    ],
+    toVerify: [
+      'Einheit/Skalierung der Radarwerte (dokumentiert: Hundertstel mm je 5 min) live re-verifizieren.',
+      'Parameter-Semantik (distance, latlon_position) und WMS-Layernamen des Karten-Overlays live re-verifizieren.',
+    ],
+  },
+  {
+    providerId: 'thru-prtr',
+    displayName: 'Thru.de / PRTR (gemeldete Schadstoff-Freisetzungen)',
+    institution:
+      'Umweltbundesamt (Thru.de, deutsches Schadstofffreisetzungs- und -verbringungsregister)',
+    sourceCategory: 'federal-authority',
+    originalSourceUrl: 'https://www.thru.de',
+    technicalEndpoint: 'CSV-Datenexport von thru.de, lokaler Import (PRTR_CSV_PATH → SQLite)',
+    accessMethod: 'Bulk-Download (CSV) + lokaler Import; kein Live-HTTP-API',
+    license: 'Datenlizenz Deutschland Namensnennung 2.0 (dl-de/by-2-0)',
+    attributionText: 'Quelle: Thru.de / Umweltbundesamt',
+    coverage:
+      'Deutschland; nur berichtspflichtige Betriebe OBERHALB der PRTR-Schwellenwerte (inkl. Treibhausgase wie CO2, CH4, N2O)',
+    updateCadence: 'jährlich (Berichtsjahr; Veröffentlichung zeitversetzt)',
+    supportedDataModes: ['reported'],
+    geographicSemantics: ['geometry'],
+    validationSchemaVersion: 'thru-prtr-csv-v1',
+    cachePolicy: { ttlSeconds: 0, rationale: 'Lokaler Datensatz; kein Live-Abruf.' },
+    status: 'proposed',
+    reviewDate: '2026-07-17',
+    knownLimitations: [
+      'Jahresfrachten sind MELDUNGEN der Betreiber für ein Berichtsjahr — keine Messung, keine Konzentration, kein Immissionswert am gewählten Ort.',
+      'Nur Betriebe oberhalb der Schwellenwerte sind enthalten — das Fehlen von Einträgen bedeutet NICHT, dass es keine Emissionen gibt.',
+      'Integriert (CSV-Import → SQLite, Umkreisabfrage); live, sobald ein Thru.de-Export via PRTR_CSV_PATH konfiguriert ist.',
+    ],
+    toVerify: [
+      'Spaltennamen des Thru.de-CSV-Exports gegen die dokumentierte Import-Erkennung verifizieren (Import bricht bei unbekannten Spalten sichtbar ab).',
+      'Lizenzangabe dl-de/by-2-0 gegen die Thru.de-Nutzungshinweise bestätigen.',
+    ],
+  },
 ];
 
 export const providerManifest: ReadonlyArray<ProviderManifestEntry> = entries.map((e) =>
@@ -312,6 +502,12 @@ const EFFECTIVE_ENDPOINT: Record<string, (c: ProviderConfig) => string> = {
   'cams-eu-airquality': (c) => c.camsApiUrl,
   'delfi-gtfs': (c) => c.gtfsStaticUrl ?? c.gtfsStaticPath ?? c.gtfsDbPath,
   'delfi-gtfs-rt': (c) => c.gtfsRtUrl ?? '(nicht konfiguriert)',
+  'pegelonline-wsv': (c) => c.pegelonlineUrl,
+  'bfs-odl': (c) => c.odlUrl,
+  'dwd-pollen': (c) => `${c.dwdHealthUrl}/s31fg.json`,
+  'dwd-uvi': (c) => `${c.dwdHealthUrl}/uvi.json`,
+  'dwd-radar': (c) => `${c.brightskyUrl}/radar`,
+  'thru-prtr': (c) => c.prtrCsvPath ?? '(nicht konfiguriert)',
 };
 
 /** Only "verified" (incl. config-activated) providers may serve live responses (§5.2). */

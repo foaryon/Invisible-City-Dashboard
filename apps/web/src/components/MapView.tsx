@@ -13,6 +13,16 @@ import { useAppStore } from '../state/store.js';
 import { api } from '../api.js';
 import { useAirStations, useAirModel, usePois } from '../queries.js';
 
+/**
+ * DWD GeoServer WMS precipitation-radar composite as a raster overlay.
+ * Attribution: Deutscher Wetterdienst; a raster IMAGE, never a point value.
+ */
+const RADAR_WMS_TILES =
+  'https://maps.dwd.de/geoserver/dwd/wms?service=WMS&version=1.3.0&request=GetMap' +
+  '&layers=dwd%3ANiederschlagsradar&styles=&crs=EPSG%3A3857&bbox={bbox-epsg-3857}' +
+  '&width=256&height=256&format=image%2Fpng&transparent=true';
+const RADAR_LAYER_ID = 'dwd-radar-wms';
+
 const CATEGORY_COLOR: Record<string, string> = {
   park: tokens.park,
   'transit-stop': tokens.stop,
@@ -73,7 +83,8 @@ export function MapView() {
   const selectedMarker = useRef<maplibregl.Marker | null>(null);
   const readyRef = useRef(false);
 
-  const { selectedPlace, pins, activeLayer, demoMode, selectPlace } = useAppStore();
+  const { selectedPlace, pins, activeLayer, demoMode, radarOverlay, selectPlace } = useAppStore();
+  const radarOverlayRef = useRef(radarOverlay);
   const air = useAirStations(selectedPlace, demoMode);
   const airModel = useAirModel(selectedPlace, demoMode);
   const pois = usePois(selectedPlace, demoMode);
@@ -123,6 +134,37 @@ export function MapView() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // DWD radar WMS overlay (toggle). Reads the latest toggle state via a ref so
+  // a deferred style 'load' applies the current, not a stale, state.
+  useEffect(() => {
+    radarOverlayRef.current = radarOverlay;
+    const map = mapRef.current;
+    if (!map) return;
+    const apply = () => {
+      const want = radarOverlayRef.current;
+      const has = !!map.getSource(RADAR_LAYER_ID);
+      if (want && !has) {
+        map.addSource(RADAR_LAYER_ID, {
+          type: 'raster',
+          tiles: [RADAR_WMS_TILES],
+          tileSize: 256,
+          attribution: 'Regenradar: Quelle Deutscher Wetterdienst',
+        });
+        map.addLayer({
+          id: RADAR_LAYER_ID,
+          type: 'raster',
+          source: RADAR_LAYER_ID,
+          paint: { 'raster-opacity': 0.55 },
+        });
+      } else if (!want && has) {
+        if (map.getLayer(RADAR_LAYER_ID)) map.removeLayer(RADAR_LAYER_ID);
+        map.removeSource(RADAR_LAYER_ID);
+      }
+    };
+    if (map.isStyleLoaded()) apply();
+    else map.once('load', apply);
+  }, [radarOverlay]);
 
   // Selected place marker + fly.
   useEffect(() => {

@@ -63,6 +63,60 @@ export function useTransit(place: SelectedPlace | null, atIso: string, demo: boo
   });
 }
 
+export function useWater(place: SelectedPlace | null, demo: boolean) {
+  return useQuery({
+    queryKey: key('water', place, demo),
+    queryFn: () => api.water(place!.coordinates, demo),
+    enabled: !!place,
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useRadiation(place: SelectedPlace | null, demo: boolean) {
+  return useQuery({
+    queryKey: key('radiation', place, demo),
+    queryFn: () => api.radiation(place!.coordinates, demo),
+    enabled: !!place,
+    staleTime: 15 * 60_000,
+  });
+}
+
+export function usePollen(place: SelectedPlace | null, demo: boolean) {
+  return useQuery({
+    queryKey: key('pollen', place, demo, place?.state ?? null),
+    queryFn: () => api.pollen(place!.coordinates, place!.state, demo),
+    enabled: !!place,
+    staleTime: 60 * 60_000,
+  });
+}
+
+export function useUv(place: SelectedPlace | null, demo: boolean) {
+  return useQuery({
+    queryKey: key('uv', place, demo),
+    queryFn: () => api.uv(place!.coordinates, demo),
+    enabled: !!place,
+    staleTime: 60 * 60_000,
+  });
+}
+
+export function useRadar(place: SelectedPlace | null, demo: boolean) {
+  return useQuery({
+    queryKey: key('radar', place, demo),
+    queryFn: () => api.radar(place!.coordinates, demo),
+    enabled: !!place,
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useEmitters(place: SelectedPlace | null, demo: boolean) {
+  return useQuery({
+    queryKey: key('emitters', place, demo),
+    queryFn: () => api.emitters(place!.coordinates, demo),
+    enabled: !!place,
+    staleTime: 60 * 60_000,
+  });
+}
+
 export function useProviders() {
   return useQuery({ queryKey: ['providers'], queryFn: api.providers, staleTime: Infinity });
 }
