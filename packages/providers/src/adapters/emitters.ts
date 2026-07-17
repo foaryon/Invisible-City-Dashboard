@@ -7,8 +7,11 @@
  *  - data mode is 'reported' — a declaration for a reporting year, never a
  *    measurement, concentration or current condition;
  *  - absence of facilities never implies absence of emissions (thresholds!);
- *  - gated on PRTR_CSV_PATH (a downloaded Thru.de export); without it the
- *    module reports configuration-required — never demo, never invented.
+ *  - gated on a Thru.de export: PRTR_CSV_PATH (local file) or PRTR_CSV_URL
+ *    (downloaded + imported automatically, refreshed monthly); without either
+ *    the module reports configuration-required — never demo, never invented.
+ *    Thru.de exposes no documented per-place query API, and the reality policy
+ *    forbids scraping its interactive export UI — hence a configured export.
  */
 import {
   type ModuleEnvelope,
@@ -18,19 +21,42 @@ import {
 } from '@invisible-city/contracts';
 import { makeEvidence, distanceMeters, formatDistanceGerman } from '@invisible-city/evidence';
 import { getEffectiveProvider } from '../manifest.js';
+import { policedFetch } from '../http.js';
 import { errorEnvelope, type AdapterContext } from '../runner.js';
-import { importPrtr, prtrImportNeeded, queryFacilities } from '../prtr/import.js';
+import {
+  importPrtr,
+  prtrImportNeeded,
+  prtrUrlImportNeeded,
+  queryFacilities,
+  PrtrImportError,
+} from '../prtr/import.js';
 
 const SEARCH_RADIUS_M = 10_000;
 const MAX_FACILITIES = 5;
+
+/** Ensure the local SQLite import is current (local file or configured URL). */
+async function ensureImport(ctx: AdapterContext): Promise<void> {
+  const { prtrCsvPath, prtrCsvUrl, prtrDbPath } = ctx.config;
+  if (prtrCsvPath) {
+    if (prtrImportNeeded(prtrCsvPath, prtrDbPath)) importPrtr(prtrCsvPath, prtrDbPath);
+    return;
+  }
+  if (prtrCsvUrl && prtrUrlImportNeeded(prtrDbPath, prtrCsvUrl)) {
+    const res = await policedFetch(prtrCsvUrl, {
+      timeoutMs: 120_000,
+      ...(ctx.fetchImpl ? { fetchImpl: ctx.fetchImpl } : {}),
+    });
+    const text = await res.text();
+    importPrtr(Buffer.from(text, 'utf8'), prtrDbPath, prtrCsvUrl);
+  }
+}
 
 export async function getEmitterContext(
   coords: Coordinates,
   ctx: AdapterContext,
 ): Promise<ModuleEnvelope<EmitterContext>> {
   const provider = getEffectiveProvider('thru-prtr', ctx.config);
-  const csvPath = ctx.config.prtrCsvPath;
-  if (provider.status !== 'verified' || !csvPath) {
+  if (provider.status !== 'verified' || !(ctx.config.prtrCsvPath || ctx.config.prtrCsvUrl)) {
     return {
       status: 'configuration-required',
       demo: false,
@@ -38,15 +64,13 @@ export async function getEmitterContext(
       evidence: [],
       limitations: provider.knownLimitations,
       statusDetail:
-        'Gemeldete Freisetzungen (Thru.de/PRTR) sind nicht konfiguriert. Für den Betrieb wird ein Thru.de-CSV-Export benötigt (PRTR_CSV_PATH).',
+        'Gemeldete Freisetzungen (Thru.de/PRTR) sind nicht konfiguriert. Für den Betrieb wird ein Thru.de-CSV-Export benötigt: lokale Datei (PRTR_CSV_PATH) oder Download-URL (PRTR_CSV_URL).',
       retrievedAt: new Date().toISOString(),
     };
   }
 
   try {
-    if (prtrImportNeeded(csvPath, ctx.config.prtrDbPath)) {
-      importPrtr(csvPath, ctx.config.prtrDbPath);
-    }
+    await ensureImport(ctx);
 
     // Bounding box ~radius (degrees); exact distance filtering below.
     const dLat = SEARCH_RADIUS_M / 111_000;
@@ -123,6 +147,17 @@ export async function getEmitterContext(
       retrievedAt,
     };
   } catch (err) {
+    if (err instanceof PrtrImportError) {
+      return {
+        status: 'source-error',
+        demo: false,
+        data: null,
+        evidence: [],
+        limitations: provider.knownLimitations,
+        statusDetail: `Der PRTR-Datensatz konnte nicht importiert werden: ${err.message} Es werden keine Ersatzwerte erzeugt.`,
+        retrievedAt: new Date().toISOString(),
+      };
+    }
     return errorEnvelope<EmitterContext>(err, provider.knownLimitations);
   }
 }

@@ -22,8 +22,11 @@ export interface ProviderConfig {
   /** DWD open-data health alerts base (pollen s31fg.json, UV uvi.json). */
   dwdHealthUrl: string;
 
-  // Thru.de / PRTR reported releases — requires a downloaded CSV export.
+  // Thru.de / PRTR reported releases — requires a CSV export: either a local
+  // file (PRTR_CSV_PATH) or a download URL (PRTR_CSV_URL) fetched and imported
+  // automatically (re-fetched when the import is older than 30 days).
   prtrCsvPath?: string;
+  prtrCsvUrl?: string;
   /** Where the imported PRTR SQLite database lives. */
   prtrDbPath: string;
 
@@ -82,6 +85,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ProviderConfig
   if (camsApiKey) config.camsApiKey = camsApiKey;
   const prtrCsvPath = optional(env, 'PRTR_CSV_PATH');
   if (prtrCsvPath) config.prtrCsvPath = prtrCsvPath;
+  const prtrCsvUrl = optional(env, 'PRTR_CSV_URL');
+  if (prtrCsvUrl) config.prtrCsvUrl = prtrCsvUrl;
   const gtfsStaticPath = optional(env, 'GTFS_STATIC_PATH');
   if (gtfsStaticPath) config.gtfsStaticPath = gtfsStaticPath;
   const gtfsStaticUrl = optional(env, 'GTFS_STATIC_URL');
@@ -101,7 +106,7 @@ const ACTIVATION: Record<string, (c: ProviderConfig) => boolean> = {
   'cams-eu-airquality': (c) => !!c.camsApiKey,
   'delfi-gtfs': (c) => !!(c.gtfsStaticPath || c.gtfsStaticUrl),
   'delfi-gtfs-rt': (c) => !!c.gtfsRtUrl,
-  'thru-prtr': (c) => !!c.prtrCsvPath,
+  'thru-prtr': (c) => !!(c.prtrCsvPath || c.prtrCsvUrl),
 };
 
 export function isConfigured(providerId: string, config: ProviderConfig): boolean {
@@ -114,7 +119,7 @@ export const REQUIRED_ENV: Record<string, string[]> = {
   'cams-eu-airquality': ['CAMS_ADS_KEY'],
   'delfi-gtfs': ['GTFS_STATIC_PATH or GTFS_STATIC_URL'],
   'delfi-gtfs-rt': ['GTFS_RT_URL'],
-  'thru-prtr': ['PRTR_CSV_PATH'],
+  'thru-prtr': ['PRTR_CSV_PATH or PRTR_CSV_URL'],
 };
 
 /** Config with all public defaults and demo enabled — used by the demo runtime and tests. */

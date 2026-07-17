@@ -182,7 +182,7 @@ export function CoverageMatrix() {
       state: moduleState(emitters.data?.status, emitters.isLoading),
       detail:
         emitters.data?.status === 'configuration-required'
-          ? 'Thru.de/PRTR (PRTR_CSV_PATH erforderlich)'
+          ? 'Thru.de/PRTR (PRTR_CSV_PATH oder PRTR_CSV_URL erforderlich)'
           : 'Thru.de/PRTR (Jahresmeldungen)',
     },
   ];

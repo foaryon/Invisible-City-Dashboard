@@ -218,17 +218,24 @@ envelope naming the exact env var — never demo, never invented data.
 - **TO VERIFY:** document operator/area coverage before any realtime is labelled `confirmed`
   (currently reported as `partial`).
 
-### Thru.de / PRTR — reported industrial releases (`thru-prtr`) — activate with `PRTR_CSV_PATH`
+### Thru.de / PRTR — reported industrial releases (`thru-prtr`) — activate with `PRTR_CSV_PATH` or `PRTR_CSV_URL`
 - **Source:** the German Pollutant Release and Transfer Register (UBA, `https://www.thru.de`)
   — statutory ANNUAL declarations by facilities above thresholds, incl. greenhouse gases
   (CO2, CH4, N2O), with facility coordinates. This is the one credible, place-based
   greenhouse-gas angle: aggregated national/Länder inventories have no honest spatial
   relation to a pin and are deliberately **not** integrated.
-- **Implementation:** download a CSV export from Thru.de, set `PRTR_CSV_PATH`;
-  `prtr/import.ts` imports it into SQLite (documented, deterministic column detection —
+- **Implementation:** provide a CSV export either as a local file (`PRTR_CSV_PATH`,
+  re-imported when the file is newer) or as a direct download URL (`PRTR_CSV_URL` — the
+  server fetches and imports it itself and refreshes monthly; PRTR is annual data).
+  `prtr/import.ts` imports into SQLite (documented, deterministic column detection —
   unknown columns make the import fail VISIBLY listing the headers found), and
   `adapters/emitters.ts` answers 10-km radius queries showing each facility's latest
-  reporting year. Data mode is **`reported`** — a declaration, never a measurement,
+  reporting year.
+- **Why not zero-config automatic:** unlike DWD/UBA/WSV/BfS, Thru.de publishes no
+  documented, stable bulk-download endpoint or per-place query API — exports come from an
+  interactive UI, and the reality policy forbids scraping undocumented interfaces. Once a
+  stable export URL is confirmed (TO VERIFY), `PRTR_CSV_URL` makes the pipeline fully
+  automatic. Data mode is **`reported`** — a declaration, never a measurement,
   concentration or current condition. Absence of facilities is explicitly rendered as "does
   NOT mean zero emissions" (thresholds).
 - **License:** dl-de/by-2-0 (**TO VERIFY**). **Attribution:** `Quelle: Thru.de /

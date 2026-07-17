@@ -28,7 +28,12 @@ import { getPollenContext, parseLegend, regionMatchesState } from '../src/adapte
 import { getUvContext } from '../src/adapters/uvi.js';
 import { getRadarContext, centerCellValue } from '../src/adapters/radar.js';
 import { getEmitterContext } from '../src/adapters/emitters.js';
-import { importPrtr, parseGermanNumber, PrtrImportError } from '../src/prtr/import.js';
+import {
+  importPrtr,
+  parseGermanNumber,
+  prtrUrlImportNeeded,
+  PrtrImportError,
+} from '../src/prtr/import.js';
 
 const coords = DEMO_PLACE.coordinates;
 const testConfig = loadConfig({} as NodeJS.ProcessEnv);
@@ -263,6 +268,62 @@ describe('Thru.de / PRTR importer + emitters adapter', () => {
       const csvPath = join(dir, 'bad.csv');
       writeFileSync(csvPath, 'foo;bar\n1;2');
       expect(() => importPrtr(csvPath, join(dir, 'x.sqlite'))).toThrow(PrtrImportError);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('downloads and imports automatically from a configured PRTR_CSV_URL (then reuses the import)', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'prtr-'));
+    try {
+      const dbPath = join(dir, 'prtr.sqlite');
+      const url = 'https://example.invalid/thru-export.csv';
+      let fetchCount = 0;
+      const config = loadConfig({
+        PRTR_CSV_URL: url,
+        PRTR_DB: dbPath,
+      } as unknown as NodeJS.ProcessEnv);
+      const ctx = {
+        cache: createMemoryCache(),
+        config,
+        fetchImpl: () => {
+          fetchCount++;
+          return Promise.resolve(new Response(prtrCsvFixture, { status: 200 }));
+        },
+      };
+      const env1 = await getEmitterContext(coords, ctx);
+      expect(env1.status).toBe('ok');
+      expect(env1.data!.facilities[0]!.name).toBe('Heizkraftwerk Demo-Mitte');
+      expect(fetchCount).toBe(1);
+
+      // Fresh import from the same URL → no re-download within the refresh window.
+      const env2 = await getEmitterContext(coords, ctx);
+      expect(env2.status).toBe('ok');
+      expect(fetchCount).toBe(1);
+
+      // Refresh policy: URL change or stale import forces a re-download.
+      expect(prtrUrlImportNeeded(dbPath, url)).toBe(false);
+      expect(prtrUrlImportNeeded(dbPath, 'https://example.invalid/other.csv')).toBe(true);
+      expect(prtrUrlImportNeeded(dbPath, url, 0)).toBe(true);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('surfaces a failing download as source-error — never invented data', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'prtr-'));
+    try {
+      const config = loadConfig({
+        PRTR_CSV_URL: 'https://example.invalid/thru-export.csv',
+        PRTR_DB: join(dir, 'prtr.sqlite'),
+      } as unknown as NodeJS.ProcessEnv);
+      const env = await getEmitterContext(coords, {
+        cache: createMemoryCache(),
+        config,
+        fetchImpl: () => Promise.resolve(new Response('down', { status: 500 })),
+      });
+      expect(env.status).toBe('source-error');
+      expect(env.data).toBeNull();
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

@@ -80,8 +80,16 @@ export class PrtrImportError extends Error {
   }
 }
 
-/** Import a Thru.de CSV export into SQLite at `dbPath`. */
-export function importPrtr(source: string | Buffer, dbPath: string): PrtrImportResult {
+/**
+ * Import a Thru.de CSV export into SQLite at `dbPath`. When the CSV came from
+ * a configured download URL, pass it as `sourceUrl` so the refresh policy can
+ * detect URL changes and import age.
+ */
+export function importPrtr(
+  source: string | Buffer,
+  dbPath: string,
+  sourceUrl?: string,
+): PrtrImportResult {
   const text = (typeof source === 'string' ? readFileSync(source) : source).toString('utf8');
   // Thru.de exports use semicolons; fall back to comma when none are present.
   const firstLine = text.slice(0, text.indexOf('\n'));
@@ -166,6 +174,7 @@ export function importPrtr(source: string | Buffer, dbPath: string): PrtrImportR
       releases++;
     }
     insertMeta.run('imported_at', new Date().toISOString());
+    insertMeta.run('source_url', sourceUrl ?? '');
   });
   db.exec('CREATE INDEX idx_facilities_lat ON facilities (lat);');
   db.exec('CREATE INDEX idx_releases_facility ON releases (facility_id);');
@@ -184,6 +193,32 @@ export function prtrImportNeeded(csvPath: string, dbPath: string): boolean {
   if (!existsSync(dbPath)) return true;
   try {
     return statSync(csvPath).mtimeMs > statSync(dbPath).mtimeMs;
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * Refresh policy for URL-sourced imports: re-download when the import is
+ * missing, was built from a different URL, or is older than `maxAgeDays`
+ * (PRTR is an ANNUAL dataset — a monthly re-check is more than enough).
+ */
+export function prtrUrlImportNeeded(dbPath: string, url: string, maxAgeDays = 30): boolean {
+  if (!existsSync(dbPath)) return true;
+  try {
+    const db = openSqlite(dbPath, { readonly: true });
+    try {
+      const meta = (key: string): string | undefined =>
+        (
+          db.prepare('SELECT value FROM prtr_meta WHERE key = ?').get(key) as
+            { value: string } | undefined
+        )?.value;
+      const importedAt = meta('imported_at');
+      if (!importedAt || meta('source_url') !== url) return true;
+      return Date.now() - new Date(importedAt).getTime() > maxAgeDays * 86_400_000;
+    } finally {
+      db.close();
+    }
   } catch {
     return true;
   }
