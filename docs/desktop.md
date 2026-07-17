@@ -62,14 +62,38 @@ can't reach it, check the PC's firewall allowed Node.js on private networks.
 
 ---
 
-## A true single-file `.exe` (no Node required)
+## Autostart on Windows (always running)
 
-`run.bat` is the standalone launcher, but it does need Node.js installed once. A genuine
-dependency-free single `.exe` is also possible and is a worthwhile addition — it requires a
-small bundling pipeline (esbuild → [`@yao-pkg/pkg`](https://github.com/yao-pkg/pkg), with the
-web assets embedded) plus one platform caveat: the app's SQLite engine is a **native**
-module, so a *trustworthy* Windows binary must be **built and tested on Windows** — a binary
-cross-built from this Linux environment couldn't be verified and might not run.
+1. Press <kbd>Win</kbd>+<kbd>R</kbd>, type `shell:startup`, press Enter.
+2. Right-click into the folder → **New → Shortcut** → browse to **`run-hidden.vbs`** in the
+   project folder.
+3. Done — after every login the dashboard starts silently (no console window). Your phone
+   can connect any time. To stop it, end **node.exe** in Task-Manager or reboot without the
+   shortcut.
 
-This isn't wired up yet by default. If you want the real `.exe`, say so and it can be added
-and validated on a Windows machine.
+`run-hidden.vbs` is the windowless variant of `run.bat`; double-clicking it directly also
+works for a one-off silent start.
+
+## A true single-file executable (no Node required)
+
+The pipeline is built in — the SQLite engine is now Node's **built-in** `node:sqlite`, so
+there are no native modules and the whole server bundles into one JS file that
+[`@yao-pkg/pkg`](https://github.com/yao-pkg/pkg) turns into a real executable:
+
+```bash
+npm ci
+npm run build:standalone -- win     # → dist-standalone/windows-x64/InvisibleCity.exe + web/
+```
+
+Run this **on your Windows PC** (pkg downloads its base Node binary from GitHub on first
+use, which egress-restricted build sandboxes block — a normal home connection is fine).
+The result is a portable folder: `InvisibleCity.exe` next to a `web/` folder — copy it
+anywhere, double-click, no Node installation needed. `linux` and `mac` targets work the
+same way.
+
+## Privacy note (self-hosting the third-party pieces)
+
+Even in private use, live queries leave your network by design: place searches go to
+`photon.komoot.io`, map tiles to OpenFreeMap, coordinates to DWD/UBA/Overpass. Every
+endpoint is an env var (`PHOTON_URL`, `OVERPASS_URL`, …), so a self-hosted Photon and/or
+tile server removes the third-party exposure with zero code changes — see `.env.example`.

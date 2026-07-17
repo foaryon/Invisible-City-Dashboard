@@ -35,11 +35,17 @@ export async function fetchJsonWithCache<T = unknown>(
   url: string,
   ctx: AdapterContext,
   init?: RequestInit,
+  /**
+   * Per-request TTL override (seconds). Used for slow-changing sub-resources
+   * (e.g. the UBA station directory) that may be cached far longer than the
+   * provider's default measurement TTL.
+   */
+  ttlSecondsOverride?: number,
 ): Promise<RawResult<T>> {
   if (provider.status !== 'verified') {
     throw new ProviderNotLiveError(provider.providerId, provider.status);
   }
-  const ttl = provider.cachePolicy.ttlSeconds;
+  const ttl = ttlSecondsOverride ?? provider.cachePolicy.ttlSeconds;
   const cached = ctx.cache.get<T>(provider.providerId, fingerprint, ttl);
   if (cached && !cached.stale) {
     return {

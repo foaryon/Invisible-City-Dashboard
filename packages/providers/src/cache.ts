@@ -7,7 +7,7 @@
  * history is stored — keys are request fingerprints of provider queries.
  */
 import { createHash } from 'node:crypto';
-import Database from 'better-sqlite3';
+import { openSqlite } from './sqlite.js';
 
 export interface CacheEntry<T> {
   payload: T;
@@ -33,8 +33,8 @@ export function requestFingerprint(parts: Record<string, string | number | undef
 }
 
 export function createSqliteCache(dbPath: string): ResponseCache {
-  const db = new Database(dbPath);
-  db.pragma('journal_mode = WAL');
+  const db = openSqlite(dbPath);
+  db.exec('PRAGMA journal_mode = WAL;');
   db.exec(`
     CREATE TABLE IF NOT EXISTS response_cache (
       provider_id TEXT NOT NULL,

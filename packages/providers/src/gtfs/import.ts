@@ -13,7 +13,7 @@
 import { readFileSync } from 'node:fs';
 import AdmZip from 'adm-zip';
 import { parse } from 'csv-parse/sync';
-import Database from 'better-sqlite3';
+import { openSqlite, type SqliteDb } from '../sqlite.js';
 
 export interface GtfsImportResult {
   stops: number;
@@ -42,7 +42,7 @@ function readTable(zip: AdmZip, name: string): Row[] {
   }) as Row[];
 }
 
-function createSchema(db: Database.Database): void {
+function createSchema(db: SqliteDb): void {
   db.exec(`
     DROP TABLE IF EXISTS stops;
     DROP TABLE IF EXISTS routes;
@@ -88,8 +88,8 @@ export function gtfsTimeToSeconds(t: string): number | null {
 export function importGtfs(source: string | Buffer, dbPath: string): GtfsImportResult {
   const buffer = typeof source === 'string' ? readFileSync(source) : source;
   const zip = new AdmZip(buffer);
-  const db = new Database(dbPath);
-  db.pragma('journal_mode = WAL');
+  const db = openSqlite(dbPath);
+  db.exec('PRAGMA journal_mode = WAL;');
   createSchema(db);
 
   const insertStop = db.prepare(
@@ -181,7 +181,7 @@ export function importGtfs(source: string | Buffer, dbPath: string): GtfsImportR
     insertMeta.run('feed_start_date', feed['feed_start_date'] ?? '');
     insertMeta.run('feed_end_date', feed['feed_end_date'] ?? '');
     insertMeta.run('imported_at', new Date().toISOString());
-  })();
+  });
 
   db.exec('CREATE INDEX idx_stop_times_stop ON stop_times (stop_id);');
   db.exec('CREATE INDEX idx_stops_lat ON stops (stop_lat);');

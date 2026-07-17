@@ -1,4 +1,4 @@
-import { mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import { networkInterfaces } from 'node:os';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -21,9 +21,20 @@ const host = process.env.HOST ?? '127.0.0.1';
 const cachePath = resolve(process.env.CACHE_DB ?? 'var/cache.sqlite');
 mkdirSync(dirname(cachePath), { recursive: true });
 
-// Serve the built web app when present (single deployable). Override with WEB_ROOT.
+// Serve the built web app when present (single deployable). Resolution order:
+// WEB_ROOT env → dev path relative to this module → "web/" folder next to the
+// bundled server / standalone executable → "web/" in the working directory.
 const here = dirname(fileURLToPath(import.meta.url));
-const webRoot = resolve(process.env.WEB_ROOT ?? resolve(here, '../../web/dist'));
+const webRootCandidates = [
+  process.env.WEB_ROOT,
+  resolve(here, '../../web/dist'),
+  resolve(here, 'web'),
+  resolve(dirname(process.execPath), 'web'),
+  resolve(process.cwd(), 'web'),
+].filter((p): p is string => !!p);
+const webRoot =
+  webRootCandidates.map((p) => resolve(p)).find((p) => existsSync(resolve(p, 'index.html'))) ??
+  resolve(here, '../../web/dist');
 
 const app = await buildServer({ cachePath, webRoot, logger: true });
 app
