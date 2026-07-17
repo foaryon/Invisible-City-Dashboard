@@ -50,7 +50,8 @@ describe('SearchBox', () => {
       target: { value: 'berlin' },
     });
     const option = await screen.findByRole('option', { name: 'Berlin, Berlin' });
-    fireEvent.click(option.querySelector('button')!);
+    // Options are selectable list items (no focusable descendants); selection is on mousedown.
+    fireEvent.mouseDown(option);
     expect(useAppStore.getState().selectedPlace?.id).toBe('osm:N:1');
     expect(useAppStore.getState().selectedPlace?.country).toBe('DE');
   });

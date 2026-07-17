@@ -16,12 +16,18 @@ export function SearchBox() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'empty' | 'error'>('idle');
   const [active, setActive] = useState(-1);
   const boxRef = useRef<HTMLDivElement>(null);
+  // The label written back into the input on selection — do not re-search it.
+  const suppressRef = useRef<string | null>(null);
 
   useEffect(() => {
     const q = query.trim();
     if (q.length < 2) {
       setResults([]);
       setStatus('idle');
+      return;
+    }
+    if (q === suppressRef.current) {
+      suppressRef.current = null;
       return;
     }
     let cancelled = false;
@@ -55,9 +61,11 @@ export function SearchBox() {
 
   const choose = (r: GeocodeResult) => {
     selectPlace(r.place);
+    suppressRef.current = r.place.label.trim();
     setQuery(r.place.label);
     setOpen(false);
     setResults([]);
+    setActive(-1);
   };
 
   const onKeyDown = (e: React.KeyboardEvent) => {
@@ -88,6 +96,11 @@ export function SearchBox() {
         aria-expanded={open}
         aria-controls="search-results"
         aria-autocomplete="list"
+        aria-activedescendant={
+          open && active >= 0 && results[active]
+            ? `search-opt-${results[active].place.id}`
+            : undefined
+        }
         placeholder="Ort, Adresse oder Koordinaten suchen …"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
@@ -118,14 +131,24 @@ export function SearchBox() {
             </li>
           ) : null}
           {results.map((r, i) => (
-            <li key={r.place.id} role="option" aria-selected={i === active}>
-              <button
-                type="button"
-                onClick={() => choose(r)}
-                style={i === active ? { background: 'var(--bg-panel-2)' } : undefined}
-              >
-                {r.place.label}
-              </button>
+            // ARIA combobox pattern: options are selectable but NOT focusable
+            // (no focusable descendants). Navigation is via arrow keys +
+            // aria-activedescendant; a click selects. Focus stays on the input.
+            <li
+              key={r.place.id}
+              id={`search-opt-${r.place.id}`}
+              role="option"
+              aria-selected={i === active}
+              className="search-option"
+              // onMouseDown so selection fires before the input's blur/outside handler.
+              onMouseDown={(e) => {
+                e.preventDefault();
+                choose(r);
+              }}
+              onMouseEnter={() => setActive(i)}
+              style={i === active ? { background: 'var(--bg-panel-2)' } : undefined}
+            >
+              {r.place.label}
             </li>
           ))}
         </ul>

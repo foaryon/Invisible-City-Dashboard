@@ -314,18 +314,15 @@ a {
   margin: 0;
   padding: 4px;
 }
-.search-results li button {
-  display: block;
-  width: 100%;
-  text-align: left;
-  background: transparent;
-  border: none;
+/* Combobox options are selectable list items (no focusable descendants). */
+.search-option {
   color: var(--text);
   padding: 8px 10px;
   border-radius: var(--radius-sm);
+  cursor: pointer;
 }
-.search-results li button:hover,
-.search-results li button:focus-visible {
+.search-option:hover,
+.search-option[aria-selected='true'] {
   background: var(--bg-panel-2);
 }
 

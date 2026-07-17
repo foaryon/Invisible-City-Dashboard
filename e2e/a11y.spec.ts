@@ -18,6 +18,8 @@ test('no critical or serious accessibility violations (demo mode)', async ({ pag
   await search.fill('berlin');
   await page.getByRole('option').filter({ hasText: 'Berlin' }).first().click();
   await expect(page.getByRole('region', { name: 'Place Lens' })).toBeVisible();
+  // The search dropdown closes on selection (and stays closed — no re-search).
+  await expect(page.getByRole('option')).toHaveCount(0);
 
   const results = await new AxeBuilder({ page })
     .exclude('.map-column')
