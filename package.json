@@ -17,6 +17,8 @@
     "dev:api": "npm run dev --workspace apps/api",
     "dev:web": "npm run dev --workspace apps/web",
     "build": "npm run build --workspaces --if-present",
+    "app": "npm run build --workspace apps/web && npm run start --workspace apps/api",
+    "icons": "node scripts/gen-icons.mjs",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

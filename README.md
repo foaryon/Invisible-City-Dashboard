@@ -137,6 +137,14 @@ Try it:
 > unavailable** states (never invented values), and the base-map tiles won't load. Enable
 > `ENABLE_DEMO=1` and use **Demo-Modus** to exercise every feature offline.
 
+### Run it as an app (Windows / Android)
+
+Double-click **`run.bat`** (Windows), **`run.command`** (macOS) or **`run.sh`** (Linux): it
+installs/builds on first run, starts the server, opens the browser, and prints a LAN address
+so a phone on the same Wi‑Fi can open it too. It's also **installable as a PWA** (Chrome/Edge
+"Install app" on desktop, "Add to Home screen" on Android). Full walkthrough for Windows 11
+and Android 16: [`docs/desktop.md`](docs/desktop.md).
+
 ---
 
 ## Scripts
