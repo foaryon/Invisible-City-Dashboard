@@ -1,0 +1,24 @@
+{
+  "name": "@invisible-city/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fastify/cors": "^11.0.0",
+    "@invisible-city/contracts": "*",
+    "@invisible-city/evidence": "*",
+    "@invisible-city/providers": "*",
+    "fastify": "^5.4.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@invisible-city/test-fixtures": "*",
+    "@types/node": "^22.15.0",
+    "tsx": "^4.20.0"
+  }
+}
