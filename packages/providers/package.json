@@ -15,7 +15,6 @@
     "@invisible-city/contracts": "*",
     "@invisible-city/evidence": "*",
     "adm-zip": "^0.5.18",
-    "better-sqlite3": "^12.2.0",
     "csv-parse": "^5.6.0",
     "gtfs-realtime-bindings": "^1.1.1",
     "netcdfjs": "^3.0.0",
@@ -24,7 +23,6 @@
   "devDependencies": {
     "@invisible-city/test-fixtures": "*",
     "@types/adm-zip": "^0.5.8",
-    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.15.0"
   }
 }

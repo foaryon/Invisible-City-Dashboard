@@ -10,6 +10,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import Fastify, { type FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
+import compress from '@fastify/compress';
 import fastifyStatic from '@fastify/static';
 import { z } from 'zod';
 import { CoordinatesSchema, type Coordinates, type PoiContext } from '@invisible-city/contracts';
@@ -58,6 +59,9 @@ function parseCoords(q: { lat: number; lon: number }): Coordinates {
 export async function buildServer(opts: ServerOptions = {}): Promise<FastifyInstance> {
   const app = Fastify({ logger: opts.logger ?? false });
   await app.register(cors, { origin: true });
+  // Brotli/gzip for API JSON and the SPA — the MapLibre chunk shrinks ~4x,
+  // which is the biggest felt win for phone-over-Wi-Fi loads.
+  await app.register(compress, { global: true, encodings: ['br', 'gzip'] });
 
   const config = opts.config ?? loadConfig();
   const cache =
@@ -185,7 +189,20 @@ export async function buildServer(opts: ServerOptions = {}): Promise<FastifyInst
   // Production single-deployable: serve the built SPA and fall back to
   // index.html for client-side routes (API routes keep precedence).
   if (opts.webRoot && existsSync(join(opts.webRoot, 'index.html'))) {
-    await app.register(fastifyStatic, { root: opts.webRoot });
+    await app.register(fastifyStatic, {
+      root: opts.webRoot,
+      // Vite content-hashes everything under /assets → cache forever.
+      // The shell (index.html, sw.js, manifest) must revalidate so updates land.
+      setHeaders: (res, filePath) => {
+        if (filePath.includes(`${'/'}assets${'/'}`)) {
+          res.header('Cache-Control', 'public, max-age=31536000, immutable');
+        } else if (/icon-\d+\.png$/.test(filePath)) {
+          res.header('Cache-Control', 'public, max-age=86400');
+        } else {
+          res.header('Cache-Control', 'no-cache');
+        }
+      },
+    });
     app.setNotFoundHandler((req, reply) => {
       if (req.method === 'GET' && !req.url.startsWith('/api/')) {
         return reply.sendFile('index.html');

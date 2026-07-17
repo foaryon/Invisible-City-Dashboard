@@ -2,6 +2,35 @@
 
 Records notable decisions and **pinned dependency versions**. Newest first.
 
+## 2026-07-17 — node:sqlite replaces better-sqlite3 (zero native deps)
+
+- **Decision:** SQLite now runs on Node's built-in `node:sqlite` behind a tiny shim
+  (`packages/providers/src/sqlite.ts` — exec/prepare/transaction/close). The cache schema is
+  unchanged, so existing `var/*.sqlite` files keep working. Consequences: no native module
+  anywhere → faster `npm ci`, no build toolchain in Docker, and single-file standalone
+  executables become possible. On Node 22.13+ the module prints an ExperimentalWarning
+  (harmless); Node 24+ is the recommended runtime where it is stable-track.
+
+## 2026-07-17 — esbuild server bundle + lean image + standalone pipeline
+
+- **Decision:** `npm run build:server` bundles the entire API into one ESM file
+  (`apps/api/dist/server.mjs`, ~3.3 MB, builds in <1 s) — verified to serve the SPA and API,
+  honor demo gating, compression, cache headers and graceful shutdown. The Docker runtime
+  stage now ships ONLY this bundle + the built SPA on `node:22-slim` (no node_modules, no
+  toolchain). `npm run build:standalone -- win|linux|mac` additionally packages a real
+  executable via @yao-pkg/pkg; pkg's base-binary download needs normal internet, so the
+  command runs on the target machine, not in the egress-blocked build sandbox (verified:
+  sandbox gets 403 from GitHub).
+
+## 2026-07-17 — Private-usage performance
+
+- **Decision:** brotli/gzip compression + `immutable` caching for hashed assets
+  (`no-cache` for the shell so updates land); UBA pollutants of a station fetched in
+  parallel (bounded at 6 concurrent; stations sequential) and the station directory cached
+  24 h via a per-request TTL override — cold-start air data drops from ~18 sequential
+  round-trips to ~1 per station. Renovate config added so dependency/security updates arrive
+  as CI-gated PRs.
+
 ## 2026-07-17 — Config-driven provider activation (production posture)
 
 - **Decision:** provider status is resolved at runtime against configuration

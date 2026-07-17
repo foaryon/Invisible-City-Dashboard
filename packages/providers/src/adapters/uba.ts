@@ -75,11 +75,21 @@ function parseStationRow(id: string, row: unknown[]): StationRow | null {
   };
 }
 
+/** The station directory changes rarely — cache it a full day, not 15 minutes. */
+const STATIONS_TTL_SECONDS = 86_400;
+
 async function fetchStations(ctx: AdapterContext) {
   const provider = getEffectiveProvider('uba-airdata', ctx.config);
   const url = `${ctx.config.ubaBaseUrl}/stations/json?lang=de`;
   const fingerprint = requestFingerprint({ resource: 'stations' });
-  const result = await fetchJsonWithCache(provider, fingerprint, url, ctx);
+  const result = await fetchJsonWithCache(
+    provider,
+    fingerprint,
+    url,
+    ctx,
+    undefined,
+    STATIONS_TTL_SECONDS,
+  );
   const parsed = StationsResponse.safeParse(result.raw);
   if (!parsed.success) return { stations: null as StationRow[] | null, result };
   const stations: StationRow[] = [];
@@ -169,35 +179,45 @@ export async function getAirStationContext(
     let anyStale = stationsResult.stale;
 
     for (const station of nearest) {
-      const measurements: AirMeasurement[] = [];
-      for (const comp of COMPONENTS) {
-        const url =
-          `${ctx.config.ubaBaseUrl}/measures/json?date_from=${fmtDate(from)}&time_from=1&date_to=${fmtDate(now)}&time_to=24` +
-          `&station=${station.stationId}&component=${comp.id}&scope=2`;
-        const fingerprint = requestFingerprint({
-          resource: 'measures',
-          station: station.stationId,
-          component: comp.id,
-          date: fmtDate(now),
-        });
-        try {
-          const result = await fetchJsonWithCache(provider, fingerprint, url, ctx);
-          anyStale = anyStale || result.stale;
-          const parsed = MeasuresResponse.safeParse(result.raw);
-          if (!parsed.success) continue; // malformed component response → omitted, never invented
-          const m = parseMeasure(
-            comp.id,
-            comp.pollutant,
-            comp.unit,
-            parsed.data.data,
-            station.stationId,
-          );
-          if (m) {
-            measurements.push(m);
-            anyMeasurement = true;
+      // Fetch all pollutants of one station in PARALLEL (the UBA API has no
+      // single-flight policy); stations stay sequential to keep concurrency
+      // bounded at COMPONENTS.length. Cold-cache latency drops from the sum of
+      // all component round-trips to roughly one round-trip per station.
+      const results = await Promise.all(
+        COMPONENTS.map(async (comp) => {
+          const url =
+            `${ctx.config.ubaBaseUrl}/measures/json?date_from=${fmtDate(from)}&time_from=1&date_to=${fmtDate(now)}&time_to=24` +
+            `&station=${station.stationId}&component=${comp.id}&scope=2`;
+          const fingerprint = requestFingerprint({
+            resource: 'measures',
+            station: station.stationId,
+            component: comp.id,
+            date: fmtDate(now),
+          });
+          try {
+            const result = await fetchJsonWithCache(provider, fingerprint, url, ctx);
+            const parsed = MeasuresResponse.safeParse(result.raw);
+            if (!parsed.success) return { measurement: null, stale: result.stale }; // malformed → omitted, never invented
+            const m = parseMeasure(
+              comp.id,
+              comp.pollutant,
+              comp.unit,
+              parsed.data.data,
+              station.stationId,
+            );
+            return { measurement: m, stale: result.stale };
+          } catch {
+            // Single-component failure → that pollutant is simply absent (partial).
+            return { measurement: null, stale: false };
           }
-        } catch {
-          // Single-component failure → that pollutant is simply absent (partial).
+        }),
+      );
+      const measurements: AirMeasurement[] = [];
+      for (const r of results) {
+        anyStale = anyStale || r.stale;
+        if (r.measurement) {
+          measurements.push(r.measurement);
+          anyMeasurement = true;
         }
       }
       outStations.push({

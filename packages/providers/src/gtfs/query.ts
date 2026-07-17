@@ -4,9 +4,9 @@
  * Everything here is "scheduled" context — never presented as realtime.
  */
 import { existsSync } from 'node:fs';
-import Database from 'better-sqlite3';
 import { type Coordinates } from '@invisible-city/contracts';
 import { distanceMeters } from '@invisible-city/evidence';
+import { openSqlite, type SqliteDb } from '../sqlite.js';
 
 export interface GtfsStop {
   stopId: string;
@@ -59,11 +59,11 @@ export function routeTypeLabel(routeType: number | null): string {
 }
 
 export class GtfsStore {
-  private db: Database.Database;
+  private db: SqliteDb;
 
   constructor(dbPath: string) {
     if (!existsSync(dbPath)) throw new Error(`GTFS database not found at ${dbPath}`);
-    this.db = new Database(dbPath, { readonly: true });
+    this.db = openSqlite(dbPath, { readonly: true });
   }
 
   meta(): GtfsMeta {
