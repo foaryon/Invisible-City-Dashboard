@@ -47,3 +47,18 @@ app
     console.error(err);
     process.exit(1);
   });
+
+// Graceful shutdown: finish in-flight requests, close the cache (onClose hook),
+// then exit. Docker/systemd send SIGTERM; Ctrl+C sends SIGINT.
+for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+  process.once(signal, () => {
+    console.info(`\nReceived ${signal} — shutting down …`);
+    void app
+      .close()
+      .then(() => process.exit(0))
+      .catch((err) => {
+        console.error(err);
+        process.exit(1);
+      });
+  });
+}

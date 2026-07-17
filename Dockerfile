@@ -26,4 +26,7 @@ ENV NODE_ENV=production HOST=0.0.0.0 PORT=3001
 COPY --from=build /app /app
 EXPOSE 3001
 # Live is the default; demo stays off unless ENABLE_DEMO=1 is set.
-CMD ["npm", "run", "start", "--workspace", "apps/api"]
+# Run tsx directly (not via npm) so SIGTERM from `docker stop` reaches the
+# server's graceful-shutdown handler instead of dying in the npm wrapper.
+WORKDIR /app/apps/api
+CMD ["/app/node_modules/.bin/tsx", "src/index.ts"]
