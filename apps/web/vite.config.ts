@@ -1,0 +1,30 @@
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+
+export default defineConfig({
+  plugins: [react()],
+  build: {
+    chunkSizeWarningLimit: 1600,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          maplibre: ['maplibre-gl'],
+          react: ['react', 'react-dom'],
+          query: ['@tanstack/react-query'],
+        },
+      },
+    },
+  },
+  server: {
+    port: 5173,
+    proxy: {
+      '/api': { target: 'http://127.0.0.1:3001', changeOrigin: true },
+    },
+  },
+  preview: {
+    port: 5173,
+    proxy: {
+      '/api': { target: 'http://127.0.0.1:3001', changeOrigin: true },
+    },
+  },
+});

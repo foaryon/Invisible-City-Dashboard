@@ -1,0 +1,17 @@
+node_modules/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+.cache/
+.vite/
+playwright-report/
+test-results/
+*.log
+.env
+.env.*
+!.env.example
+var/
+*.sqlite
+*.sqlite-journal
+.DS_Store

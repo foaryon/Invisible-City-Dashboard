@@ -1,0 +1,234 @@
+import { useEffect, useRef } from 'react';
+import maplibregl, { type Map as MlMap, type LngLatLike } from 'maplibre-gl';
+import 'maplibre-gl/dist/maplibre-gl.css';
+import { type SelectedPlace } from '@invisible-city/contracts';
+import {
+  BASE_MAP_STYLE_URL,
+  BASE_MAP_ATTRIBUTION,
+  INITIAL_VIEW,
+  tokens,
+} from '@invisible-city/map-style';
+import { stationSpatialRole } from '@invisible-city/evidence';
+import { useAppStore } from '../state/store.js';
+import { api } from '../api.js';
+import { useAirStations, useAirModel, usePois } from '../queries.js';
+
+const CATEGORY_COLOR: Record<string, string> = {
+  park: tokens.park,
+  'transit-stop': tokens.stop,
+  pharmacy: tokens.pharmacy,
+  toilet: tokens.toilet,
+  'drinking-water': tokens.water,
+};
+
+function markerEl(color: string, shape: 'circle' | 'ring' | 'square', title: string): HTMLElement {
+  const el = document.createElement('div');
+  el.setAttribute('role', 'img');
+  el.setAttribute('aria-label', title);
+  el.title = title;
+  el.style.width = '14px';
+  el.style.height = '14px';
+  el.style.boxShadow = '0 0 0 2px rgba(0,0,0,0.4)';
+  el.style.cursor = 'pointer';
+  if (shape === 'ring') {
+    el.style.border = `2px solid ${color}`;
+    el.style.borderRadius = '50%';
+    el.style.background = 'transparent';
+  } else {
+    el.style.background = color;
+    el.style.borderRadius = shape === 'circle' ? '50%' : '2px';
+  }
+  return el;
+}
+
+function pinEl(slot: string, color: string): HTMLElement {
+  const el = document.createElement('div');
+  el.textContent = slot;
+  el.setAttribute('aria-label', `Vergleichspunkt ${slot}`);
+  el.style.width = '24px';
+  el.style.height = '24px';
+  el.style.borderRadius = '50% 50% 50% 0';
+  el.style.transform = 'rotate(-45deg)';
+  el.style.background = color;
+  el.style.color = '#10141a';
+  el.style.fontWeight = '700';
+  el.style.fontSize = '12px';
+  el.style.display = 'flex';
+  el.style.alignItems = 'center';
+  el.style.justifyContent = 'center';
+  el.style.boxShadow = '0 2px 6px rgba(0,0,0,0.5)';
+  const label = document.createElement('span');
+  label.textContent = slot;
+  label.style.transform = 'rotate(45deg)';
+  el.textContent = '';
+  el.appendChild(label);
+  return el;
+}
+
+export function MapView() {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<MlMap | null>(null);
+  const overlayMarkers = useRef<maplibregl.Marker[]>([]);
+  const pinMarkers = useRef<Record<string, maplibregl.Marker>>({});
+  const selectedMarker = useRef<maplibregl.Marker | null>(null);
+  const readyRef = useRef(false);
+
+  const { selectedPlace, pins, activeLayer, demoMode, selectPlace } = useAppStore();
+  const air = useAirStations(selectedPlace, demoMode);
+  const airModel = useAirModel(selectedPlace, demoMode);
+  const pois = usePois(selectedPlace, demoMode);
+
+  // Init map once.
+  useEffect(() => {
+    if (!containerRef.current || mapRef.current) return;
+    const map = new maplibregl.Map({
+      container: containerRef.current,
+      style: BASE_MAP_STYLE_URL,
+      center: INITIAL_VIEW.center as LngLatLike,
+      zoom: INITIAL_VIEW.zoom,
+      attributionControl: false,
+    });
+    map.addControl(new maplibregl.NavigationControl({ visualizePitch: false }), 'top-right');
+    map.addControl(
+      new maplibregl.AttributionControl({ compact: true, customAttribution: BASE_MAP_ATTRIBUTION }),
+      'bottom-right',
+    );
+    map.on('load', () => {
+      readyRef.current = true;
+    });
+    map.on('click', (e) => {
+      void (async () => {
+        const coords = { latitude: e.lngLat.lat, longitude: e.lngLat.lng };
+        // Temporary analysis point immediately; reverse-geocode label if available.
+        const provisional: SelectedPlace = {
+          id: `point:${coords.latitude.toFixed(5)},${coords.longitude.toFixed(5)}`,
+          label: `Punkt ${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)}`,
+          coordinates: coords,
+          country: 'DE',
+        };
+        selectPlace(provisional);
+        try {
+          const env = await api.reverse(coords, demoMode);
+          const place = env.data?.[0]?.place;
+          if (place) selectPlace({ ...place, coordinates: coords });
+        } catch {
+          // Keep provisional label; reverse geocoding is best-effort.
+        }
+      })();
+    });
+    mapRef.current = map;
+    return () => {
+      map.remove();
+      mapRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Selected place marker + fly.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    selectedMarker.current?.remove();
+    selectedMarker.current = null;
+    if (!selectedPlace) return;
+    const el = markerEl(tokens.pinA, 'circle', 'Gewählter Ort');
+    el.style.width = '18px';
+    el.style.height = '18px';
+    el.style.boxShadow = `0 0 0 4px ${tokens.pinA}44, 0 0 0 2px rgba(0,0,0,0.5)`;
+    selectedMarker.current = new maplibregl.Marker({ element: el })
+      .setLngLat([selectedPlace.coordinates.longitude, selectedPlace.coordinates.latitude])
+      .addTo(map);
+    map.flyTo({
+      center: [selectedPlace.coordinates.longitude, selectedPlace.coordinates.latitude],
+      zoom: Math.max(map.getZoom(), 11),
+      duration: 800,
+    });
+  }, [selectedPlace]);
+
+  // A/B/C comparison pins.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    for (const slot of ['A', 'B', 'C'] as const) {
+      pinMarkers.current[slot]?.remove();
+      delete pinMarkers.current[slot];
+      const place = pins[slot];
+      if (!place) continue;
+      const color = slot === 'A' ? tokens.pinA : slot === 'B' ? tokens.pinB : tokens.pinC;
+      pinMarkers.current[slot] = new maplibregl.Marker({ element: pinEl(slot, color) })
+        .setLngLat([place.coordinates.longitude, place.coordinates.latitude])
+        .addTo(map);
+    }
+  }, [pins]);
+
+  // Analytical overlay markers depend on the active layer.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    for (const m of overlayMarkers.current) m.remove();
+    overlayMarkers.current = [];
+
+    if (activeLayer === 'air-stations' && air.data?.data) {
+      for (const s of air.data.data.stations) {
+        const regional = stationSpatialRole(s.distanceMeters) === 'regional';
+        const el = markerEl(
+          regional ? tokens.stationRegional : tokens.station,
+          regional ? 'ring' : 'circle',
+          `${s.name} (${regional ? 'regionale Referenz' : 'nah'})`,
+        );
+        overlayMarkers.current.push(
+          new maplibregl.Marker({ element: el })
+            .setLngLat([s.coordinates.longitude, s.coordinates.latitude])
+            .addTo(map),
+        );
+      }
+    }
+
+    if (activeLayer === 'air-model' && airModel.data?.data) {
+      const m = airModel.data.data;
+      // Grid cell centre as a square marker — regional (~10 km), not a point value.
+      const el = markerEl(
+        tokens.pinC,
+        'square',
+        `CAMS-Rasterzelle ~${m.resolutionKm ?? 10} km (regionaler modellierter Hintergrund)`,
+      );
+      el.style.width = '22px';
+      el.style.height = '22px';
+      el.style.opacity = '0.65';
+      overlayMarkers.current.push(
+        new maplibregl.Marker({ element: el })
+          .setLngLat([m.cellLongitude, m.cellLatitude])
+          .addTo(map),
+      );
+    }
+
+    if ((activeLayer === 'places' || activeLayer === 'transit') && pois.data?.data) {
+      const filtered =
+        activeLayer === 'transit'
+          ? pois.data.data.pois.filter((p) => p.category === 'transit-stop')
+          : pois.data.data.pois;
+      for (const p of filtered) {
+        const el = markerEl(
+          CATEGORY_COLOR[p.category] ?? tokens.neutral,
+          'circle',
+          p.name ?? p.category,
+        );
+        overlayMarkers.current.push(
+          new maplibregl.Marker({ element: el })
+            .setLngLat([p.coordinates.longitude, p.coordinates.latitude])
+            .addTo(map),
+        );
+      }
+    }
+  }, [activeLayer, air.data, airModel.data, pois.data]);
+
+  return (
+    <div
+      ref={containerRef}
+      className="map-canvas"
+      style={{ position: 'absolute', inset: 0 }}
+      aria-label="Interaktive Karte von Deutschland. Klicken Sie, um einen Analysepunkt zu setzen."
+      role="application"
+    />
+  );
+}
