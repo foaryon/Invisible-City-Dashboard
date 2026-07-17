@@ -14,6 +14,11 @@ ownership of weather, air-quality, transit or municipal data. Every material val
 its source, time, data mode, spatial meaning and limitations. **A visible limitation is a
 successful product outcome.**
 
+**Status:** V1 complete and merged. Full quality gate green — **162 Vitest** tests
+(unit · component · integration · governance · non-functional) and **12 Playwright** E2E
+(including accessibility). Runs as a single deployable; every provider is real,
+config-driven code.
+
 ---
 
 ## What it shows
@@ -32,10 +37,32 @@ successful product outcome.**
 | Base map | OpenFreeMap (OSM data) | mapped | live (keyless) |
 
 **Every adapter is real, config-driven code.** Keyless providers are live out of the box.
-CAMS and DELFI need a credential/feed (a Copernicus key, an opendata-oepnv registration) —
-until that is configured the UI reports **"Konfiguration erforderlich"** with the exact env
-var needed. It is **never** faked, and never demo. Check `/api/readiness` for per-provider
-live status.
+CAMS and DELFI are fully implemented but need a credential/feed (a Copernicus key, an
+opendata-oepnv registration) — until that is configured the UI reports
+**"Konfiguration erforderlich"** with the exact env var needed. It is **never** faked,
+never a placeholder, never demo. Query `/api/readiness` for per-provider live status.
+
+---
+
+## Features
+
+- **Shared place & time model** — one location, one instant; "Jetzt" plus short-term
+  forward selection; all times shown in Europe/Berlin with correct DST (and the UBA
+  CET/MEZ quirk normalized, original source time preserved).
+- **Six analytical map layers**, one primary at a time, each with a legend that states its
+  source, spatial meaning, time applicability and limitations.
+- **Place Lens** — compact per-location context with data-mode chips and honest status
+  (available · partial · stale · unavailable · source-error · configuration-required · demo).
+- **Evidence Inspector** — for every material value: provider & institution, source URL,
+  license, attribution, data mode, method, the four distinct times, cache age, spatial
+  relation, completeness and limitations.
+- **Coverage matrix** — a neutral, non-judgmental availability grid per place.
+- **A/B/C comparison** — pin up to three places; compare only comparable, simultaneously
+  meaningful values, with the data mode beside each. No overall score, no "best place".
+- **Opt-in Demo Mode** — permanently labelled, exercises every feature offline; demo and
+  live data never mix, and provider failure never silently falls back to demo.
+- **Accessible & private** — keyboard paths, WCAG-AA contrast, `prefers-reduced-motion`;
+  no accounts, no tracking, no location history, no secrets in the frontend.
 
 ---
 
@@ -46,36 +73,40 @@ npm workspaces monorepo:
 ```
 apps/
   web/         React + Vite + MapLibre GL JS (UI only — no provider parsing)
-  api/         Fastify — provider orchestration, caching, demo/live gating
+  api/         Fastify — provider orchestration, caching, demo/live gating, serves the SPA
 packages/
   contracts/   Zod schemas + TypeScript types (every external boundary)
   evidence/    Evidence construction, time/DST, geo/distance, comparability, wording policy
-  providers/   Source adapters, provider manifest, HTTP policy, source-aware cache
+  providers/   Source adapters, provider manifest, config-gated activation, HTTP policy,
+               source-aware cache, GTFS import/query, GTFS-RT decode, CAMS/NetCDF
   map-style/   Base map, analytical layer registry, legends, design tokens
   test-fixtures/  Provider-shaped fixtures (also power opt-in Demo Mode)
 docs/          Charter, architecture, data sources, evidence & map policy, privacy, …
 ```
 
-The data flow for every adapter (§7.3):
+The data flow for every adapter:
 
 ```
 source → permitted fetch → runtime Zod validation → provider-specific normalization
        → Evidence attachment → source-aware cache (TTL) → normalized ModuleEnvelope → UI
 ```
 
-No provider is served live unless it has a **`verified`** entry in the provider manifest.
+Provider status is resolved at runtime against configuration: keyless providers are always
+live; credentialed providers (CAMS, DELFI) become live only when their config is present,
+and otherwise return an honest `configuration-required` envelope — never invented data.
 
 ---
 
 ## Prerequisites
 
 - **Node.js 22 LTS or newer** (Node 24 "Krypton" LTS recommended — see
-  [`docs/decisions.md`](docs/decisions.md) for the version note). The build environment
-  used Node 22; `package.json` pins `engines.node >= 22.11.0`.
+  [`docs/decisions.md`](docs/decisions.md) for the version note). `package.json` pins
+  `engines.node >= 22.11.0`.
 - npm 10+.
 
-No API keys are required for any V1-activated provider. CAMS (Stage 4) would require a
-Copernicus ADS registration + API key and is intentionally left inactive.
+No API keys are required for the keyless providers (DWD, UBA, OSM/Overpass, Photon,
+OpenFreeMap) — they are live out of the box. CAMS and DELFI are fully integrated and
+activate when you supply their credential/feed (see below).
 
 ---
 
@@ -100,11 +131,11 @@ Try it:
 2. Switch analytical layers (top-left) — each has a legend, source and spatial meaning.
 3. Open **Belege** on any value to inspect full evidence.
 4. Pin up to three places (A/B/C) and compare — data mode is shown beside every value.
-5. Toggle **Demo-Modus** to see the app with fixtures (permanently banner-labelled).
+5. Toggle **Demo-Modus** to explore the full UI with fixtures (permanently banner-labelled).
 
 > Without outbound network access, live providers return honest **source-error /
-> unavailable** states (never invented values). Use **Demo-Modus** to exercise the full UI
-> offline.
+> unavailable** states (never invented values), and the base-map tiles won't load. Enable
+> `ENABLE_DEMO=1` and use **Demo-Modus** to exercise every feature offline.
 
 ---
 
@@ -117,9 +148,36 @@ Try it:
 | `npm run lint` | ESLint (strict, incl. react-hooks) |
 | `npm run format:check` / `npm run format` | Prettier check / write |
 | `npm run typecheck` | `tsc --noEmit` in every workspace (strict mode) |
-| `npm test` | Vitest unit + integration tests |
-| `npm run test:e2e` | Playwright end-to-end tests |
+| `npm test` | Vitest — all projects |
+| `npm run test:node` / `npm run test:web` | Vitest — node or web (jsdom) project only |
+| `npm run test:coverage` | Vitest with V8 coverage |
+| `npm run test:e2e` | Playwright end-to-end + accessibility |
 | `npm run verify` | lint → format:check → typecheck → test → build |
+
+---
+
+## Testing
+
+Two Vitest projects — **node** (packages + API) and **web** (jsdom + Testing Library) —
+plus Playwright for browser E2E and accessibility:
+
+- **Unit** — evidence, time/DST, geo, comparability, wording policy, config/activation,
+  HTTP policy (retries, 429, timeout, Overpass single-flight), cache (memory + SQLite),
+  manifest resolution, map-style registry.
+- **Component** — Place Lens, Evidence Inspector, Coverage matrix, Time control, Layer
+  switch/Legend, Search box, Compare (rendered with a mocked API and the real store).
+- **Integration** — every adapter against fixtures/failures; all API endpoints; a real
+  GTFS import → scheduled-departures round-trip.
+- **Governance (Masterprompt compliance)** — scans all product source for disallowed
+  wording; provider attribution/license/review completeness; data-mode & spatial
+  discriminators; the observed≠modelled reality rule; demo stamping across every adapter.
+- **Non-functional** — performance budgets; security (no server-only header, `process.env`,
+  secrets or the providers package in the frontend; no `eval`; no `PRIVATE-TOKEN` in the
+  bundle).
+- **E2E + accessibility** — Playwright flows in Demo Mode, including an axe scan (no
+  critical/serious WCAG 2 A/AA violations).
+
+See [`docs/testing.md`](docs/testing.md).
 
 ---
 
@@ -191,7 +249,14 @@ Inspector and on the map:
 - **Umweltbundesamt** (UBA, dl-de/by-2-0)
 - **© OpenStreetMap contributors** (ODbL) — Overpass, Photon
 - **OpenFreeMap © OpenMapTiles Data from OpenStreetMap**
-- DELFI e.V. / Copernicus attribution documented for future activation.
+- **Datenquelle: DELFI e.V.** (transit) · **Generated using Copernicus Atmosphere
+  Monitoring Service information** (CAMS) — shown when activated.
+
+## Documentation
+
+`docs/` — product charter, architecture, data sources (provider manifest + open
+verification items), evidence policy, map semantics, privacy, testing, decisions, progress
+and the V1 release report.
 
 ## License
 
