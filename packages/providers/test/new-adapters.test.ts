@@ -1,21 +1,16 @@
 /**
  * Adapter tests for the V1.1 providers: PEGELONLINE water levels, BfS ODL
- * gamma dose rate, DWD pollen + UV forecasts, DWD radar (via Bright Sky) and
- * Thru.de/PRTR reported releases. Fixture-driven (egress-blocked build env);
- * every negative path must stay honest: source-error / unavailable /
- * configuration-required — never invented data.
+ * gamma dose rate, DWD pollen + UV forecasts and DWD radar (via Bright Sky).
+ * Fixture-driven (egress-blocked build env); every negative path must stay
+ * honest: source-error / unavailable — never invented data.
  */
 import { describe, it, expect } from 'vitest';
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import {
   pegelonlineStationsFixture,
   odlLatestFixture,
   dwdPollenFixture,
   dwdUviFixture,
   brightskyRadarFixture,
-  prtrCsvFixture,
   malformedFixtures,
   DEMO_PLACE,
 } from '@invisible-city/test-fixtures';
@@ -27,13 +22,6 @@ import { getRadiationContext } from '../src/adapters/odl.js';
 import { getPollenContext, parseLegend, regionMatchesState } from '../src/adapters/pollen.js';
 import { getUvContext } from '../src/adapters/uvi.js';
 import { getRadarContext, centerCellValue } from '../src/adapters/radar.js';
-import { getEmitterContext } from '../src/adapters/emitters.js';
-import {
-  importPrtr,
-  parseGermanNumber,
-  prtrUrlImportNeeded,
-  PrtrImportError,
-} from '../src/prtr/import.js';
 
 const coords = DEMO_PLACE.coordinates;
 const testConfig = loadConfig({} as NodeJS.ProcessEnv);
@@ -218,123 +206,5 @@ describe('DWD radar adapter (via Bright Sky)', () => {
       ),
     ).toBe(4);
     expect(centerCellValue([[5]], undefined)).toBe(5);
-  });
-});
-
-describe('Thru.de / PRTR importer + emitters adapter', () => {
-  it('is configuration-required without PRTR_CSV_PATH — never demo, never invented', async () => {
-    const env = await getEmitterContext(coords, {
-      cache: createMemoryCache(),
-      config: testConfig,
-    });
-    expect(env.status).toBe('configuration-required');
-    expect(env.data).toBeNull();
-    expect(env.statusDetail).toContain('PRTR_CSV_PATH');
-  });
-
-  it('imports a documented-shape CSV (semicolons, German decimals) and answers radius queries', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'prtr-'));
-    try {
-      const csvPath = join(dir, 'thru-export.csv');
-      const dbPath = join(dir, 'prtr.sqlite');
-      writeFileSync(csvPath, prtrCsvFixture);
-      const result = importPrtr(csvPath, dbPath);
-      expect(result.facilities).toBe(2);
-      expect(result.releases).toBe(4);
-      expect(result.reportingYears).toEqual([2022, 2023]);
-
-      const config = loadConfig({
-        PRTR_CSV_PATH: csvPath,
-        PRTR_DB: dbPath,
-      } as unknown as NodeJS.ProcessEnv);
-      const env = await getEmitterContext(coords, { cache: createMemoryCache(), config });
-      expect(env.status).toBe('ok');
-      const f = env.data!.facilities[0]!;
-      expect(f.name).toBe('Heizkraftwerk Demo-Mitte');
-      // Latest reporting year only (2023), CO2 + NOx.
-      expect(f.releases.length).toBe(2);
-      expect(f.releases.every((r) => r.year === 2023)).toBe(true);
-      expect(f.releases.every((r) => r.mode === 'reported')).toBe(true);
-      const co2 = f.releases.find((r) => r.pollutant.startsWith('CO2'))!;
-      expect(co2.amountKg).toBe(1_250_000_000);
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-  });
-
-  it('fails VISIBLY on unrecognized columns, listing headers found', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'prtr-'));
-    try {
-      const csvPath = join(dir, 'bad.csv');
-      writeFileSync(csvPath, 'foo;bar\n1;2');
-      expect(() => importPrtr(csvPath, join(dir, 'x.sqlite'))).toThrow(PrtrImportError);
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-  });
-
-  it('downloads and imports automatically from a configured PRTR_CSV_URL (then reuses the import)', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'prtr-'));
-    try {
-      const dbPath = join(dir, 'prtr.sqlite');
-      const url = 'https://example.invalid/thru-export.csv';
-      let fetchCount = 0;
-      const config = loadConfig({
-        PRTR_CSV_URL: url,
-        PRTR_DB: dbPath,
-      } as unknown as NodeJS.ProcessEnv);
-      const ctx = {
-        cache: createMemoryCache(),
-        config,
-        fetchImpl: () => {
-          fetchCount++;
-          return Promise.resolve(new Response(prtrCsvFixture, { status: 200 }));
-        },
-      };
-      const env1 = await getEmitterContext(coords, ctx);
-      expect(env1.status).toBe('ok');
-      expect(env1.data!.facilities[0]!.name).toBe('Heizkraftwerk Demo-Mitte');
-      expect(fetchCount).toBe(1);
-
-      // Fresh import from the same URL → no re-download within the refresh window.
-      const env2 = await getEmitterContext(coords, ctx);
-      expect(env2.status).toBe('ok');
-      expect(fetchCount).toBe(1);
-
-      // Refresh policy: URL change or stale import forces a re-download.
-      expect(prtrUrlImportNeeded(dbPath, url)).toBe(false);
-      expect(prtrUrlImportNeeded(dbPath, 'https://example.invalid/other.csv')).toBe(true);
-      expect(prtrUrlImportNeeded(dbPath, url, 0)).toBe(true);
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-  });
-
-  it('surfaces a failing download as source-error — never invented data', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'prtr-'));
-    try {
-      const config = loadConfig({
-        PRTR_CSV_URL: 'https://example.invalid/thru-export.csv',
-        PRTR_DB: join(dir, 'prtr.sqlite'),
-      } as unknown as NodeJS.ProcessEnv);
-      const env = await getEmitterContext(coords, {
-        cache: createMemoryCache(),
-        config,
-        fetchImpl: () => Promise.resolve(new Response('down', { status: 500 })),
-      });
-      expect(env.status).toBe('source-error');
-      expect(env.data).toBeNull();
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-  });
-
-  it('parses German numbers without inventing zeros', () => {
-    expect(parseGermanNumber('52,5211')).toBe(52.5211);
-    expect(parseGermanNumber('1.250.000,5')).toBe(1_250_000.5);
-    expect(parseGermanNumber('1250000')).toBe(1_250_000);
-    expect(parseGermanNumber('')).toBeNull();
-    expect(parseGermanNumber('n/a')).toBeNull();
-    expect(parseGermanNumber(undefined)).toBeNull();
   });
 });

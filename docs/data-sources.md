@@ -1,7 +1,7 @@
 # Data sources & provider manifest
 
 The machine-readable manifest is `packages/providers/src/manifest.ts`
-(version **`2026-07-17.2`**). Only providers with status **`verified`** serve live
+(version **`2026-07-17.3`**). Only providers with status **`verified`** serve live
 production responses. This document summarises each provider's license, attribution,
 coverage, cache policy and **open verification tasks**.
 
@@ -218,29 +218,21 @@ envelope naming the exact env var — never demo, never invented data.
 - **TO VERIFY:** document operator/area coverage before any realtime is labelled `confirmed`
   (currently reported as `partial`).
 
-### Thru.de / PRTR — reported industrial releases (`thru-prtr`) — activate with `PRTR_CSV_PATH` or `PRTR_CSV_URL`
-- **Source:** the German Pollutant Release and Transfer Register (UBA, `https://www.thru.de`)
-  — statutory ANNUAL declarations by facilities above thresholds, incl. greenhouse gases
-  (CO2, CH4, N2O), with facility coordinates. This is the one credible, place-based
-  greenhouse-gas angle: aggregated national/Länder inventories have no honest spatial
-  relation to a pin and are deliberately **not** integrated.
-- **Implementation:** provide a CSV export either as a local file (`PRTR_CSV_PATH`,
-  re-imported when the file is newer) or as a direct download URL (`PRTR_CSV_URL` — the
-  server fetches and imports it itself and refreshes monthly; PRTR is annual data).
-  `prtr/import.ts` imports into SQLite (documented, deterministic column detection —
-  unknown columns make the import fail VISIBLY listing the headers found), and
-  `adapters/emitters.ts` answers 10-km radius queries showing each facility's latest
-  reporting year.
-- **Why not zero-config automatic:** unlike DWD/UBA/WSV/BfS, Thru.de publishes no
-  documented, stable bulk-download endpoint or per-place query API — exports come from an
-  interactive UI, and the reality policy forbids scraping undocumented interfaces. Once a
-  stable export URL is confirmed (TO VERIFY), `PRTR_CSV_URL` makes the pipeline fully
-  automatic. Data mode is **`reported`** — a declaration, never a measurement,
-  concentration or current condition. Absence of facilities is explicitly rendered as "does
-  NOT mean zero emissions" (thresholds).
-- **License:** dl-de/by-2-0 (**TO VERIFY**). **Attribution:** `Quelle: Thru.de /
-  Umweltbundesamt`.
-- **TO VERIFY:** CSV export column names against the import detection; license wording.
+---
+
+## Evaluated and removed
+
+### Thru.de / PRTR — reported industrial releases (removed 2026-07-17)
+
+Facility-level PRTR declarations (incl. greenhouse gases CO2/CH4/N2O, with coordinates)
+were the one credible, place-based GHG angle and were fully implemented in V1.1. They were
+**removed by product decision**: Thru.de publishes no documented, stable bulk-download
+endpoint or per-place query API — its CSV exports require a manual step through an
+interactive UI, and this product's rule is that every live module must be fully automatic
+(scraping undocumented interfaces stays forbidden by the reality policy). Aggregated
+national/Länder GHG inventories remain out as well (no honest spatial relation to a pin).
+Rationale: `docs/decisions.md`; the implementation is retrievable from git history should
+Thru.de publish a documented automatic interface.
 
 ---
 
@@ -255,7 +247,6 @@ envelope naming the exact env var — never demo, never invented data.
 | WSV/PEGELONLINE | `Quelle: WSV / PEGELONLINE` |
 | BfS ODL | `Quelle: Bundesamt für Strahlenschutz (BfS), ODL-Messnetz` |
 | DWD (pollen, UV, radar) | `Quelle: Deutscher Wetterdienst` |
-| Thru.de/PRTR | `Quelle: Thru.de / Umweltbundesamt` |
 | CAMS (future) | `Generated using Copernicus Atmosphere Monitoring Service information 2026` |
 | DELFI (future) | `Datenquelle: DELFI e.V.` |
 | BKG VG250 (future) | `© BKG (Jahr) dl-de/by-2-0` |
@@ -278,4 +269,3 @@ adapters are implemented; runtime Zod validation makes any schema mismatch fail 
 11. **DWD pollen** — `s31fg.json` schema; optional polygon-based partregion assignment.
 12. **DWD UV** — `uvi.json` schema; reconcile location names with the coordinate table.
 13. **DWD radar** — Bright Sky `/radar` unit scaling + parameters; WMS overlay layer name.
-14. **Thru.de/PRTR** — CSV export column names against the import detection; license.

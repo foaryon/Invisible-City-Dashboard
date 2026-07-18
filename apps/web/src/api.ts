@@ -19,7 +19,6 @@ import {
   type PollenContext,
   type UvContext,
   type RadarContext,
-  type EmitterContext,
 } from '@invisible-city/contracts';
 
 export interface ReadinessProvider {
@@ -87,8 +86,6 @@ export const api = {
     getJson<ModuleEnvelope<UvContext>>('/api/uv', { ...coordParams(c), demo }),
   radar: (c: Coordinates, demo: boolean) =>
     getJson<ModuleEnvelope<RadarContext>>('/api/radar', { ...coordParams(c), demo }),
-  emitters: (c: Coordinates, demo: boolean) =>
-    getJson<ModuleEnvelope<EmitterContext>>('/api/emitters', { ...coordParams(c), demo }),
   providers: () =>
     getJson<{ manifestVersion: string; providers: ProviderManifestEntry[] }>('/api/providers', {}),
   readiness: () => getJson<Readiness>('/api/readiness', {}),

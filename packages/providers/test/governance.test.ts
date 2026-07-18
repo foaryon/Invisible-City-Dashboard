@@ -71,7 +71,7 @@ describe('wording policy (§9) — no disallowed claims ship in product source',
 describe('source governance (§5) — every provider is fully declared', () => {
   it('the manifest is versioned and non-empty', () => {
     expect(MANIFEST_VERSION).toMatch(/^\d{4}-\d{2}-\d{2}\.\d+$/);
-    expect(providerManifest.length).toBeGreaterThanOrEqual(15);
+    expect(providerManifest.length).toBeGreaterThanOrEqual(14);
   });
 
   it('every entry validates and carries institution, license, attribution, review date, source URL', () => {
@@ -96,7 +96,7 @@ describe('source governance (§5) — every provider is fully declared', () => {
 });
 
 describe('data contracts (§6) — mode & spatial discriminators exist', () => {
-  it('exposes all eleven data modes (incl. reported annual declarations)', () => {
+  it('exposes all ten data modes', () => {
     expect(new Set(DataModeSchema.options)).toEqual(
       new Set([
         'observed',
@@ -109,7 +109,6 @@ describe('data contracts (§6) — mode & spatial discriminators exist', () => {
         'cached',
         'unavailable',
         'demo',
-        'reported',
       ]),
     );
   });
@@ -148,7 +147,6 @@ describe('demo/live separation (§3.1.J) — every demo adapter is stamped', () 
       await demoAdapters.pollen('Berlin'),
       await demoAdapters.uv(coords),
       await demoAdapters.radar(coords),
-      demoAdapters.emitters(coords),
     ];
     for (const env of envelopes) {
       expect(env.demo).toBe(true);

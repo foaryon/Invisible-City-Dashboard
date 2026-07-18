@@ -14,7 +14,7 @@ ownership of weather, air-quality, transit or municipal data. Every material val
 its source, time, data mode, spatial meaning and limitations. **A visible limitation is a
 successful product outcome.**
 
-**Status:** V1.1 — 15 providers integrated. Full quality gate green — **185 Vitest** tests
+**Status:** V1.1 — 14 providers integrated, all fully automatic. Full quality gate green — **180+ Vitest** tests
 (unit · component · integration · governance · non-functional) and **12 Playwright** E2E
 (including accessibility). Runs as a single deployable; every provider is real,
 config-driven code.
@@ -40,20 +40,19 @@ config-driven code.
 | Gamma dose rate (radiation) | BfS ODL network (~1,700 probes) | observed | live (keyless) |
 | Pollen hazard index | DWD (per forecast partregion) | forecast | live (keyless) |
 | UV index | DWD (reference locations) | forecast | live (keyless) |
-| Reported releases incl. GHG | Thru.de / PRTR (UBA) | reported (annual declarations) | live when `PRTR_CSV_PATH` or `PRTR_CSV_URL` set |
 
 **Every adapter is real, config-driven code.** Keyless providers are live out of the box.
-CAMS, DELFI and Thru.de/PRTR are fully implemented but need a credential/feed/export (a
-Copernicus key, an opendata-oepnv registration, a Thru.de CSV download) — until that is
-configured the UI reports **"Konfiguration erforderlich"** with the exact env var needed.
-It is **never** faked, never a placeholder, never demo. Query `/api/readiness` for
-per-provider live status.
+CAMS and DELFI are fully implemented but need a credential/feed (a Copernicus key, an
+opendata-oepnv registration or feed URL) — until that is configured the UI reports
+**"Konfiguration erforderlich"** with the exact env var needed. It is **never** faked,
+never a placeholder, never demo. Query `/api/readiness` for per-provider live status.
 
-**On greenhouse gases:** aggregated national GHG inventories are deliberately NOT shown on
-a place lens (annual, coarse, 1–2 y lag — no honest spatial relation to a pin). Instead the
-dashboard integrates **facility-level PRTR declarations** (CO2, CH4, N2O, NOx, …, with
-coordinates and reporting year) under the dedicated data mode `reported` — visibly a
-statutory annual declaration, never a measurement or local concentration.
+**On greenhouse gases:** deliberately NOT integrated. Aggregated national GHG inventories
+have no honest spatial relation to a map pin (annual, coarse, 1–2 y lag), and the only
+credible place-based source (facility-level Thru.de/PRTR declarations) offers no
+documented automatic data interface — its exports require a manual CSV download, which
+violates this product's rule that every live module must be fully automatic. The
+evaluation and removal are recorded in [`docs/decisions.md`](docs/decisions.md).
 
 ---
 

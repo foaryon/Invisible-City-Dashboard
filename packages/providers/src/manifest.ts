@@ -13,7 +13,7 @@
 import { ProviderManifestEntrySchema, type ProviderManifestEntry } from '@invisible-city/contracts';
 import { isConfigured, type ProviderConfig } from './config.js';
 
-export const MANIFEST_VERSION = '2026-07-17.2';
+export const MANIFEST_VERSION = '2026-07-17.3';
 
 const entries: ProviderManifestEntry[] = [
   {
@@ -431,40 +431,6 @@ const entries: ProviderManifestEntry[] = [
       'Parameter-Semantik (distance, latlon_position) und WMS-Layernamen des Karten-Overlays live re-verifizieren.',
     ],
   },
-  {
-    providerId: 'thru-prtr',
-    displayName: 'Thru.de / PRTR (gemeldete Schadstoff-Freisetzungen)',
-    institution:
-      'Umweltbundesamt (Thru.de, deutsches Schadstofffreisetzungs- und -verbringungsregister)',
-    sourceCategory: 'federal-authority',
-    originalSourceUrl: 'https://www.thru.de',
-    technicalEndpoint:
-      'CSV-Datenexport von thru.de → lokaler SQLite-Import (PRTR_CSV_PATH oder Download via PRTR_CSV_URL, monatlicher Refresh)',
-    accessMethod:
-      'Bulk-Download (CSV), manuell oder über eine konfigurierte URL; kein dokumentiertes Live-Abfrage-API',
-    license: 'Datenlizenz Deutschland Namensnennung 2.0 (dl-de/by-2-0)',
-    attributionText: 'Quelle: Thru.de / Umweltbundesamt',
-    coverage:
-      'Deutschland; nur berichtspflichtige Betriebe OBERHALB der PRTR-Schwellenwerte (inkl. Treibhausgase wie CO2, CH4, N2O)',
-    updateCadence: 'jährlich (Berichtsjahr; Veröffentlichung zeitversetzt)',
-    supportedDataModes: ['reported'],
-    geographicSemantics: ['geometry'],
-    validationSchemaVersion: 'thru-prtr-csv-v1',
-    cachePolicy: { ttlSeconds: 0, rationale: 'Lokaler Datensatz; kein Live-Abruf.' },
-    status: 'proposed',
-    reviewDate: '2026-07-17',
-    knownLimitations: [
-      'Jahresfrachten sind MELDUNGEN der Betreiber für ein Berichtsjahr — keine Messung, keine Konzentration, kein Immissionswert am gewählten Ort.',
-      'Nur Betriebe oberhalb der Schwellenwerte sind enthalten — das Fehlen von Einträgen bedeutet NICHT, dass es keine Emissionen gibt.',
-      'Integriert (CSV-Import → SQLite, Umkreisabfrage); live, sobald ein Thru.de-Export via PRTR_CSV_PATH oder PRTR_CSV_URL konfiguriert ist.',
-      'Kein automatischer Abruf ohne Konfiguration: Thru.de bietet keinen dokumentierten stabilen Gesamtexport-Endpunkt; die interaktive Exportoberfläche wird nicht gescrapt (Reality-Policy).',
-    ],
-    toVerify: [
-      'Spaltennamen des Thru.de-CSV-Exports gegen die dokumentierte Import-Erkennung verifizieren (Import bricht bei unbekannten Spalten sichtbar ab).',
-      'Lizenzangabe dl-de/by-2-0 gegen die Thru.de-Nutzungshinweise bestätigen.',
-      'Stabile, dokumentierte Download-URL des Gesamtexports bestätigen — dann genügt PRTR_CSV_URL und der Import läuft vollautomatisch.',
-    ],
-  },
 ];
 
 export const providerManifest: ReadonlyArray<ProviderManifestEntry> = entries.map((e) =>
@@ -511,7 +477,6 @@ const EFFECTIVE_ENDPOINT: Record<string, (c: ProviderConfig) => string> = {
   'dwd-pollen': (c) => `${c.dwdHealthUrl}/s31fg.json`,
   'dwd-uvi': (c) => `${c.dwdHealthUrl}/uvi.json`,
   'dwd-radar': (c) => `${c.brightskyUrl}/radar`,
-  'thru-prtr': (c) => c.prtrCsvUrl ?? c.prtrCsvPath ?? '(nicht konfiguriert)',
 };
 
 /** Only "verified" (incl. config-activated) providers may serve live responses (§5.2). */

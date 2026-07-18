@@ -25,12 +25,6 @@ export const DataModeSchema = z.enum([
   'cached',
   'unavailable',
   'demo',
-  /**
-   * Statutory annual declarations (e.g. PRTR emission reports): values reported
-   * by the obligated party for a reporting year — neither a measurement at the
-   * selected place nor a current condition.
-   */
-  'reported',
 ]);
 export type DataMode = z.infer<typeof DataModeSchema>;
 
@@ -590,35 +584,3 @@ export const RadarContextSchema = z.object({
   frames: z.array(RadarFrameSchema),
 });
 export type RadarContext = z.infer<typeof RadarContextSchema>;
-
-// ---------------------------------------------------------------------------
-// Reported industrial releases (Thru.de / PRTR) — statutory ANNUAL declarations
-// by facilities above thresholds; never a concentration or local air value.
-// ---------------------------------------------------------------------------
-
-export const EmitterReleaseSchema = z.object({
-  pollutant: z.string(),
-  /** Reported annual load in kilograms for the reporting year. */
-  amountKg: z.number().nullable(),
-  medium: z.string(),
-  year: z.number(),
-  mode: DataModeSchema,
-});
-export type EmitterRelease = z.infer<typeof EmitterReleaseSchema>;
-
-export const EmitterFacilitySchema = z.object({
-  facilityId: z.string(),
-  name: z.string(),
-  activity: z.string().nullable(),
-  coordinates: CoordinatesSchema,
-  distanceMeters: z.number().nonnegative(),
-  releases: z.array(EmitterReleaseSchema),
-});
-export type EmitterFacility = z.infer<typeof EmitterFacilitySchema>;
-
-export const EmitterContextSchema = z.object({
-  facilities: z.array(EmitterFacilitySchema),
-  searchRadiusMeters: z.number().positive(),
-  reportingYears: z.array(z.number()),
-});
-export type EmitterContext = z.infer<typeof EmitterContextSchema>;
