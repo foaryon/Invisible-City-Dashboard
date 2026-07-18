@@ -126,7 +126,6 @@ export function MapView() {
       map.remove();
       mapRef.current = null;
     };
-     
   }, []);
 
   // DWD radar WMS overlay (toggle). Reads the latest toggle state via a ref so

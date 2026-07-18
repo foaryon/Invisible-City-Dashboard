@@ -65,6 +65,17 @@ test('keyboard navigation selects a search result', async ({ page }) => {
   await expect(page.getByText('Wettervorhersage')).toBeVisible();
 });
 
+test('Enter without arrow navigation confirms the first result', async ({ page }) => {
+  await enableDemo(page);
+  const search = page.getByRole('combobox', { name: /Ort, Adresse/ });
+  await search.click();
+  await search.fill('berlin');
+  await expect(page.getByRole('option').first()).toBeVisible({ timeout: 15_000 });
+  await search.press('Enter'); // no ArrowDown — the type-then-confirm flow
+  // The first result is selected and the Lens populates for it.
+  await expect(page.getByText('Wettervorhersage')).toBeVisible();
+});
+
 test('layer switching updates the legend and keeps one primary layer', async ({ page }) => {
   await enableDemo(page);
   await selectBerlin(page);
