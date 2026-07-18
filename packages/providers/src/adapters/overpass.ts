@@ -31,6 +31,9 @@ const OverpassResponse = z.object({
 });
 
 function categorize(tags: Record<string, string>): PoiCategory | null {
+  if (tags['emergency'] === 'defibrillator') return 'defibrillator';
+  if (tags['amenity'] === 'hospital') return 'hospital';
+  if (tags['amenity'] === 'fire_station') return 'fire-station';
   if (tags['leisure'] === 'park') return 'park';
   if (tags['amenity'] === 'pharmacy') return 'pharmacy';
   if (tags['amenity'] === 'toilets') return 'toilet';
@@ -54,6 +57,11 @@ export async function getPoiContext(
   node["amenity"="pharmacy"](${around});
   node["amenity"="toilets"](${around});
   node["amenity"="drinking_water"](${around});
+  node["emergency"="defibrillator"](${around});
+  node["amenity"="hospital"](${around});
+  way["amenity"="hospital"](${around});
+  node["amenity"="fire_station"](${around});
+  way["amenity"="fire_station"](${around});
   node["public_transport"="stop_position"](${around});
   node["highway"="bus_stop"](${around});
   way["leisure"="park"](${around});

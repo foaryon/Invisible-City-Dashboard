@@ -80,8 +80,14 @@ documentation, license, attribution and technical terms before activation.
 - **License:** **ODbL.** Attribution `© OpenStreetMap contributors`, linked to
   openstreetmap.org/copyright.
 - **Cache TTL:** 21600 s (6 h).
+- **Categories:** parks, pharmacies, toilets, drinking water, transit stops, and (new)
+  **emergency & health** — defibrillators (`emergency=defibrillator`), hospitals and fire
+  stations. Surfaced in a dedicated "Notfall & Gesundheit" Place-Lens module and on the
+  map's *places* layer.
 - **Limitations:** mapped context only — **no** opening hours, accessibility, operating
-  status, safety, shade or cooling claims. Completeness unknown.
+  status, safety, shade or cooling claims. Completeness unknown. For emergency/health
+  objects this is explicit in the manifest: a missing AED/hospital does **not** mean none
+  exists — in an emergency, call 112.
 
 ### Photon — geocoding (`photon-geocoding`)
 - **Endpoint:** `https://photon.komoot.io/api` (search) + `/reverse`. Apache-2.0 code,

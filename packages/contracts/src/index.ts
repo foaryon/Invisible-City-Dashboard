@@ -375,6 +375,9 @@ export const PoiCategorySchema = z.enum([
   'pharmacy',
   'toilet',
   'drinking-water',
+  'defibrillator',
+  'hospital',
+  'fire-station',
 ]);
 export type PoiCategory = z.infer<typeof PoiCategorySchema>;
 

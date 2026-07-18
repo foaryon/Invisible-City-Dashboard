@@ -204,6 +204,26 @@ export const overpassPoisFixture = {
       lon: 13.4094,
       tags: { public_transport: 'stop_position', name: 'U Rotes Rathaus (Demo)' },
     },
+    {
+      type: 'node',
+      id: 771100001,
+      lat: 52.5205,
+      lon: 13.4088,
+      tags: { emergency: 'defibrillator', name: 'AED Rathaus-Passage (Demo)' },
+    },
+    {
+      type: 'way',
+      id: 771100002,
+      center: { lat: 52.5188, lon: 13.3765 },
+      tags: { amenity: 'hospital', name: 'Demo-Klinikum Mitte' },
+    },
+    {
+      type: 'node',
+      id: 771100003,
+      lat: 52.5241,
+      lon: 13.4159,
+      tags: { amenity: 'fire_station', name: 'Feuerwache Mitte (Demo)' },
+    },
   ],
 };
 

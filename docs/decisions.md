@@ -2,6 +2,21 @@
 
 Records notable decisions and **pinned dependency versions**. Newest first.
 
+## 2026-07-18 — Emergency & health infrastructure (keyless, via existing OSM provider)
+
+- **Decision:** integrate life-safety infrastructure — defibrillators/AED
+  (`emergency=defibrillator`), hospitals and fire stations — by extending the already-live,
+  keyless OSM/Overpass provider (new `PoiCategory` values, query terms, map colours, legend,
+  a "Notfall & Gesundheit" Place-Lens module and coverage row). No new credentials, no
+  upload; fully automatic like everything else. Thematically the strongest "invisible city"
+  layer (infrastructure you can't see).
+- **Honesty:** rendered strictly as mapped OSM context. The manifest states explicitly that
+  a missing AED/hospital does NOT mean none exists (mapping is incomplete) and that the 112
+  applies in emergencies — no availability/operating claims.
+- **Not guessed:** motorway EV-charging (Autobahn `electric_charging` service) and other
+  candidates whose field schema can't be verified from the egress-blocked build env are kept
+  in the candidates register rather than integrated blind (reality policy).
+
 ## 2026-07-18 — Tier-1/Tier-2 expansion (all fully automatic)
 
 - **Decision:** seven new providers, every one either keyless-live or auto-activating from

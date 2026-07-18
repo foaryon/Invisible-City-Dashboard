@@ -13,7 +13,7 @@
 import { ProviderManifestEntrySchema, type ProviderManifestEntry } from '@invisible-city/contracts';
 import { isConfigured, type ProviderConfig } from './config.js';
 
-export const MANIFEST_VERSION = '2026-07-18.1';
+export const MANIFEST_VERSION = '2026-07-18.2';
 
 const entries: ProviderManifestEntry[] = [
   {
@@ -136,6 +136,7 @@ const entries: ProviderManifestEntry[] = [
     knownLimitations: [
       'Kartierter Kontext, keine Betriebsgarantie: keine Aussage zu Öffnung, Zustand, Sicherheit, Schatten oder Barrierefreiheit.',
       'Vollständigkeit und Alter der Kartierung sind unbekannt.',
+      'Notfall-/Gesundheitsobjekte (AED, Krankenhaus, Feuerwache) sind kartierter Kontext — ein fehlender Eintrag bedeutet NICHT, dass kein Defibrillator/keine Einrichtung existiert; im Notfall gilt die 112.',
       'Öffentliche Instanz drosselt (HTTP 429) bei Überlastung.',
     ],
     toVerify: [],
