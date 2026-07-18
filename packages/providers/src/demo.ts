@@ -28,6 +28,17 @@ import {
   dwdPollenFixture,
   dwdUviFixture,
   brightskyRadarFixture,
+  bkgVg250Fixture,
+  ninaDashboardFixture,
+  autobahnRoadsFixture,
+  autobahnWarningFixture,
+  geofonEventTextFixture,
+  cdcTemperatureStationsFixture,
+  cdcTemperatureValuesFixture,
+  cdcPrecipitationStationsFixture,
+  cdcPrecipitationValuesFixture,
+  tankerkoenigListFixture,
+  dbFastaFixture,
 } from '@invisible-city/test-fixtures';
 import { createMemoryCache } from './cache.js';
 import { demoConfig } from './config.js';
@@ -43,8 +54,29 @@ import { getRadiationContext } from './adapters/odl.js';
 import { getPollenContext } from './adapters/pollen.js';
 import { getUvContext } from './adapters/uvi.js';
 import { getRadarContext } from './adapters/radar.js';
+import { getCivilWarningContext } from './adapters/nina.js';
+import { getAutobahnContext } from './adapters/autobahn.js';
+import { getSeismicContext } from './adapters/geofon.js';
+import { getClimateNormalsContext } from './adapters/cdcNormals.js';
+import { getFuelContext } from './adapters/tankerkoenig.js';
+import { getStationFacilityContext } from './adapters/dbFasta.js';
 
 function fixtureFetch(url: string): Promise<Response> {
+  // Documented plain-text interfaces (FDSN text, CDC tables) get raw text.
+  const text = (() => {
+    if (url.includes('geofon.gfz-potsdam.de')) return geofonEventTextFixture;
+    if (url.includes('Temperatur_1991-2020_Stationsliste')) return cdcTemperatureStationsFixture;
+    if (url.includes('Temperatur_1991-2020')) return cdcTemperatureValuesFixture;
+    if (url.includes('Niederschlag_1991-2020_Stationsliste'))
+      return cdcPrecipitationStationsFixture;
+    if (url.includes('Niederschlag_1991-2020')) return cdcPrecipitationValuesFixture;
+    return null;
+  })();
+  if (text !== null) {
+    return Promise.resolve(
+      new Response(text, { status: 200, headers: { 'Content-Type': 'text/plain' } }),
+    );
+  }
   const body = (() => {
     if (url.includes('/radar')) return brightskyRadarFixture;
     if (url.includes('api.brightsky.dev')) return brightskyWeatherFixture;
@@ -58,6 +90,14 @@ function fixtureFetch(url: string): Promise<Response> {
     if (url.includes('imis.bfs.de')) return odlLatestFixture;
     if (url.includes('s31fg.json')) return dwdPollenFixture;
     if (url.includes('uvi.json')) return dwdUviFixture;
+    if (url.includes('sgx.geodatenzentrum.de')) return bkgVg250Fixture;
+    if (url.includes('warnung.bund.de')) return ninaDashboardFixture;
+    if (url.includes('/services/warning')) return autobahnWarningFixture;
+    if (url.includes('/services/closure')) return { closure: [] };
+    if (url.includes('/services/roadworks')) return { roadworks: [] };
+    if (url.includes('verkehr.autobahn.de')) return autobahnRoadsFixture;
+    if (url.includes('tankerkoenig.de')) return tankerkoenigListFixture;
+    if (url.includes('apis.deutschebahn.com')) return dbFastaFixture;
     throw new Error(`No demo fixture for ${url}`);
   })();
   return Promise.resolve(
@@ -70,6 +110,24 @@ function fixtureFetch(url: string): Promise<Response> {
 
 export function demoContext(): AdapterContext {
   return { cache: createMemoryCache(), config: demoConfig(), fetchImpl: fixtureFetch };
+}
+
+/**
+ * Demo context for the key-gated providers: dummy credentials activate the
+ * REAL adapter code paths against fixtures. Demo only — live requests never
+ * see these values.
+ */
+function demoContextWithKeys(): AdapterContext {
+  return {
+    cache: createMemoryCache(),
+    config: {
+      ...demoConfig(),
+      tankerkoenigApiKey: 'demo',
+      dbClientId: 'demo',
+      dbApiKey: 'demo',
+    },
+    fetchImpl: fixtureFetch,
+  };
 }
 
 export function stampDemo<T>(envelope: ModuleEnvelope<T>): ModuleEnvelope<T> {
@@ -123,6 +181,24 @@ export const demoAdapters = {
   },
   async radar(coords: Coordinates) {
     return stampDemo(await getRadarContext(coords, demoContext()));
+  },
+  async civilWarnings(coords: Coordinates) {
+    return stampDemo(await getCivilWarningContext(coords, demoContext()));
+  },
+  async autobahn(coords: Coordinates) {
+    return stampDemo(await getAutobahnContext(coords, demoContext()));
+  },
+  async quakes(coords: Coordinates) {
+    return stampDemo(await getSeismicContext(coords, demoContext()));
+  },
+  async climateNormals(coords: Coordinates) {
+    return stampDemo(await getClimateNormalsContext(coords, demoContext()));
+  },
+  async fuel(coords: Coordinates) {
+    return stampDemo(await getFuelContext(coords, demoContextWithKeys()));
+  },
+  async stationFacilities(coords: Coordinates) {
+    return stampDemo(await getStationFacilityContext(coords, demoContextWithKeys()));
   },
   /**
    * CAMS has no keyless live path, so its demo payload is constructed directly

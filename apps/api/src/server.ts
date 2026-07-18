@@ -39,6 +39,12 @@ import {
   getPollenContext,
   getUvContext,
   getRadarContext,
+  getCivilWarningContext,
+  getAutobahnContext,
+  getSeismicContext,
+  getClimateNormalsContext,
+  getFuelContext,
+  getStationFacilityContext,
   demoAdapters,
 } from '@invisible-city/providers';
 
@@ -241,6 +247,54 @@ export async function buildServer(opts: ServerOptions = {}): Promise<FastifyInst
     const coords = parseCoords(parsed.data);
     if (wantsDemo(parsed.data)) return demoAdapters.radar(coords);
     return getRadarContext(coords, ctx);
+  });
+
+  app.get('/api/civil-warnings', async (req, reply) => {
+    const parsed = CoordsQuery.safeParse(req.query);
+    if (!parsed.success) return reply.code(400).send({ error: 'Ungültige Koordinaten.' });
+    const coords = parseCoords(parsed.data);
+    if (wantsDemo(parsed.data)) return demoAdapters.civilWarnings(coords);
+    return getCivilWarningContext(coords, ctx);
+  });
+
+  app.get('/api/autobahn', async (req, reply) => {
+    const parsed = CoordsQuery.safeParse(req.query);
+    if (!parsed.success) return reply.code(400).send({ error: 'Ungültige Koordinaten.' });
+    const coords = parseCoords(parsed.data);
+    if (wantsDemo(parsed.data)) return demoAdapters.autobahn(coords);
+    return getAutobahnContext(coords, ctx);
+  });
+
+  app.get('/api/quakes', async (req, reply) => {
+    const parsed = CoordsQuery.safeParse(req.query);
+    if (!parsed.success) return reply.code(400).send({ error: 'Ungültige Koordinaten.' });
+    const coords = parseCoords(parsed.data);
+    if (wantsDemo(parsed.data)) return demoAdapters.quakes(coords);
+    return getSeismicContext(coords, ctx);
+  });
+
+  app.get('/api/climate-normals', async (req, reply) => {
+    const parsed = CoordsQuery.safeParse(req.query);
+    if (!parsed.success) return reply.code(400).send({ error: 'Ungültige Koordinaten.' });
+    const coords = parseCoords(parsed.data);
+    if (wantsDemo(parsed.data)) return demoAdapters.climateNormals(coords);
+    return getClimateNormalsContext(coords, ctx);
+  });
+
+  app.get('/api/fuel', async (req, reply) => {
+    const parsed = CoordsQuery.safeParse(req.query);
+    if (!parsed.success) return reply.code(400).send({ error: 'Ungültige Koordinaten.' });
+    const coords = parseCoords(parsed.data);
+    if (wantsDemo(parsed.data)) return demoAdapters.fuel(coords);
+    return getFuelContext(coords, ctx);
+  });
+
+  app.get('/api/station-facilities', async (req, reply) => {
+    const parsed = CoordsQuery.safeParse(req.query);
+    if (!parsed.success) return reply.code(400).send({ error: 'Ungültige Koordinaten.' });
+    const coords = parseCoords(parsed.data);
+    if (wantsDemo(parsed.data)) return demoAdapters.stationFacilities(coords);
+    return getStationFacilityContext(coords, ctx);
   });
 
   // Production single-deployable: serve the built SPA and fall back to

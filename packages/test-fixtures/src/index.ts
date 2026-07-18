@@ -461,6 +461,164 @@ export const brightskyRadarFixture = {
   latlon_position: { x: 1.2, y: 1.4 },
 };
 
+/** Raw shape of the BKG VG250 WFS GetFeature response (vg250_gem, point intersect). */
+export const bkgVg250Fixture = {
+  type: 'FeatureCollection',
+  features: [
+    {
+      type: 'Feature',
+      id: 'vg250_gem.1',
+      properties: {
+        ars: '110000000000',
+        ags: '11000000',
+        gen: 'Berlin',
+        bez: 'Stadt',
+      },
+      geometry: null,
+    },
+  ],
+};
+
+/** Raw shape of the NINA dashboard response per district ARS. */
+export const ninaDashboardFixture = [
+  {
+    id: 'mow.DE-BE-W042-DEMO',
+    payload: {
+      version: 2,
+      type: 'ALERT',
+      id: 'mow.DE-BE-W042-DEMO',
+      data: {
+        headline: 'Warnung vor Schadstoffausbreitung nach Brand (Demo-Fixture)',
+        provider: 'MOWAS',
+        severity: 'Minor',
+        msgType: 'Alert',
+        transKeys: { event: 'BBK-EVC-040' },
+      },
+    },
+    sent: '2026-07-16T09:12:00+02:00',
+  },
+];
+
+/** Raw shape of the Autobahn API: road list + one per-kind response. */
+export const autobahnRoadsFixture = { roads: ['A10', 'A100'] };
+
+export const autobahnWarningFixture = {
+  warning: [
+    {
+      identifier: 'demo-warning-1',
+      title: 'A10 | AD Barnim Richtung AD Schwanebeck (Demo)',
+      subtitle: 'Stau (Demo-Fixture)',
+      coordinate: { lat: '52.6390', long: '13.4980' },
+      startTimestamp: '2026-07-16T08:30:00.000+02:00',
+    },
+  ],
+};
+
+export const autobahnEmptyKindFixture = { closure: [] };
+
+/** FDSN event web service `format=text` response (GEOFON). */
+export const geofonEventTextFixture = [
+  '#EventID|Time|Latitude|Longitude|Depth/km|Author|Catalog|Contributor|ContributorID|MagType|Magnitude|MagAuthor|EventLocationName',
+  'gfz2026demo1|2026-07-10T02:14:31.5|52.301|13.121|8.0|GFZ|GEOFON|GFZ|gfz2026demo1|ML|2.1|GFZ|Brandenburg, Germany (Demo)',
+  'gfz2026demo2|2026-06-28T22:01:02.0|50.902|12.402|11.0|GFZ|GEOFON|GFZ|gfz2026demo2|ML|2.8|GFZ|Saxony, Germany (Demo)',
+].join('\n');
+
+/** DWD CDC multi-annual tables (station list + values), documented layout. */
+export const cdcTemperatureStationsFixture = [
+  'Stations_id;Stationshoehe;Geogr.Breite;Geogr.Laenge;von_datum;bis_datum;Stationsname',
+  '   433;48;52.4675;13.4021;19510101;20201231;Berlin-Tempelhof',
+  '  1048;228;51.1280;13.7543;19510101;20201231;Dresden-Klotzsche',
+].join('\n');
+
+export const cdcTemperatureValuesFixture = [
+  'Stations_id;Jan.;Feb.;Mrz.;Apr.;Mai;Jun.;Jul.;Aug.;Sep.;Okt.;Nov.;Dez.;Jahr',
+  '   433;1.2;2.0;5.1;10.2;14.9;18.3;20.1;19.6;15.2;10.1;5.3;2.2;10.4',
+  '  1048;0.5;1.4;4.6;9.6;14.0;17.4;19.4;19.0;14.5;9.5;4.6;1.5;9.7',
+].join('\n');
+
+export const cdcPrecipitationStationsFixture = [
+  'Stations_id;Stationshoehe;Geogr.Breite;Geogr.Laenge;von_datum;bis_datum;Stationsname',
+  '   433;48;52.4675;13.4021;19510101;20201231;Berlin-Tempelhof',
+].join('\n');
+
+export const cdcPrecipitationValuesFixture = [
+  'Stations_id;Jan.;Feb.;Mrz.;Apr.;Mai;Jun.;Jul.;Aug.;Sep.;Okt.;Nov.;Dez.;Jahr',
+  '   433;44;36;39;31;53;62;71;58;45;42;40;49;570',
+].join('\n');
+
+/** Raw shape of the Tankerkönig `list.php` response. */
+export const tankerkoenigListFixture = {
+  ok: true,
+  license: 'CC BY 4.0 - https://creativecommons.tankerkoenig.de',
+  data: 'MTS-K',
+  status: 'ok',
+  stations: [
+    {
+      id: 'demo-station-1',
+      name: 'Demo Tankstelle Mitte',
+      brand: 'DEMO',
+      street: 'Beispielstr. 1',
+      place: 'Berlin',
+      lat: 52.5245,
+      lng: 13.4102,
+      dist: 0.6,
+      diesel: 1.639,
+      e5: 1.789,
+      e10: 1.729,
+      isOpen: true,
+      houseNumber: '1',
+      postCode: 10178,
+    },
+    {
+      id: 'demo-station-2',
+      name: 'Demo Tankstelle Ost',
+      brand: 'DEMO',
+      street: 'Musterallee 2',
+      place: 'Berlin',
+      lat: 52.5129,
+      lng: 13.4519,
+      dist: 3.2,
+      diesel: 1.619,
+      e5: false,
+      e10: 1.709,
+      isOpen: false,
+      houseNumber: '2',
+      postCode: 10245,
+    },
+  ],
+};
+
+/** Raw shape of the DB FaSta v2 `facilities` response. */
+export const dbFastaFixture = [
+  {
+    equipmentnumber: 10499721,
+    type: 'ELEVATOR',
+    state: 'ACTIVE',
+    description: 'zu Gleis 1/2 (Demo)',
+    geocoordX: 13.4106,
+    geocoordY: 52.5219,
+    stationnumber: 527,
+  },
+  {
+    equipmentnumber: 10499722,
+    type: 'ELEVATOR',
+    state: 'INACTIVE',
+    description: 'zu Gleis 3/4 (Demo)',
+    geocoordX: 13.4108,
+    geocoordY: 52.5221,
+    stationnumber: 527,
+  },
+  {
+    equipmentnumber: 10999999,
+    type: 'ESCALATOR',
+    state: 'UNKNOWN',
+    description: 'weit entfernt (Demo)',
+    geocoordX: 11.0,
+    geocoordY: 49.0,
+    stationnumber: 999,
+  },
+];
+
 /** Malformed payloads for negative tests (schema rejection paths). */
 export const malformedFixtures = {
   brightsky: { wetter: [] },
@@ -473,4 +631,10 @@ export const malformedFixtures = {
   pollen: { content: [{ region_id: 'x' }] },
   uvi: { content: [{ city: 42 }] },
   radar: { radar: [{ timestamp: '2026-07-16T09:50:00+00:00', precipitation_5: 'nope' }] },
+  nina: [{ payload: 'not-an-object' }],
+  autobahnRoads: { roads: 'nope' },
+  geofonText: 'gfz2026broken|2026-07-10T02:14:31.5|not-enough-columns',
+  cdcTable: 'kaputt',
+  tankerkoenig: { ok: false, message: 'apikey invalid' },
+  fasta: [{ equipmentnumber: 'not-a-number' }],
 };

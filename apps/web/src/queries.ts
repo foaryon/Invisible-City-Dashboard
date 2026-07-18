@@ -108,6 +108,60 @@ export function useRadar(place: SelectedPlace | null, demo: boolean) {
   });
 }
 
+export function useCivilWarnings(place: SelectedPlace | null, demo: boolean) {
+  return useQuery({
+    queryKey: key('civil-warnings', place, demo),
+    queryFn: () => api.civilWarnings(place!.coordinates, demo),
+    enabled: !!place,
+    staleTime: 2 * 60_000,
+  });
+}
+
+export function useAutobahn(place: SelectedPlace | null, demo: boolean) {
+  return useQuery({
+    queryKey: key('autobahn', place, demo),
+    queryFn: () => api.autobahn(place!.coordinates, demo),
+    enabled: !!place,
+    staleTime: 10 * 60_000,
+  });
+}
+
+export function useQuakes(place: SelectedPlace | null, demo: boolean) {
+  return useQuery({
+    queryKey: key('quakes', place, demo),
+    queryFn: () => api.quakes(place!.coordinates, demo),
+    enabled: !!place,
+    staleTime: 15 * 60_000,
+  });
+}
+
+export function useClimateNormals(place: SelectedPlace | null, demo: boolean) {
+  return useQuery({
+    queryKey: key('climate-normals', place, demo),
+    queryFn: () => api.climateNormals(place!.coordinates, demo),
+    enabled: !!place,
+    staleTime: 24 * 3600_000,
+  });
+}
+
+export function useFuel(place: SelectedPlace | null, demo: boolean) {
+  return useQuery({
+    queryKey: key('fuel', place, demo),
+    queryFn: () => api.fuel(place!.coordinates, demo),
+    enabled: !!place,
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useStationFacilities(place: SelectedPlace | null, demo: boolean) {
+  return useQuery({
+    queryKey: key('station-facilities', place, demo),
+    queryFn: () => api.stationFacilities(place!.coordinates, demo),
+    enabled: !!place,
+    staleTime: 5 * 60_000,
+  });
+}
+
 export function useProviders() {
   return useQuery({ queryKey: ['providers'], queryFn: api.providers, staleTime: Infinity });
 }

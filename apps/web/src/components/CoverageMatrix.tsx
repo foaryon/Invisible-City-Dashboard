@@ -13,6 +13,12 @@ import {
   usePollen,
   useUv,
   useRadar,
+  useCivilWarnings,
+  useAutobahn,
+  useQuakes,
+  useClimateNormals,
+  useFuel,
+  useStationFacilities,
 } from '../queries.js';
 
 interface Row {
@@ -80,6 +86,12 @@ export function CoverageMatrix() {
   const pollen = usePollen(selectedPlace, demoMode);
   const uv = useUv(selectedPlace, demoMode);
   const radar = useRadar(selectedPlace, demoMode);
+  const civil = useCivilWarnings(selectedPlace, demoMode);
+  const autobahn = useAutobahn(selectedPlace, demoMode);
+  const quakes = useQuakes(selectedPlace, demoMode);
+  const normals = useClimateNormals(selectedPlace, demoMode);
+  const fuel = useFuel(selectedPlace, demoMode);
+  const facilities = useStationFacilities(selectedPlace, demoMode);
 
   if (!selectedPlace) {
     return (
@@ -174,6 +186,44 @@ export function CoverageMatrix() {
       detail: radiation.data?.data?.stations?.[0]
         ? `Sonde ${formatDistanceGerman(radiation.data.data.stations[0].distanceMeters)} entfernt`
         : 'BfS ODL-Messnetz',
+    },
+    {
+      label: 'Zivilschutz (NINA)',
+      state: moduleState(civil.data?.status, civil.isLoading),
+      detail: civil.data?.data ? `Kreisebene, ARS ${civil.data.data.ars}` : 'BBK NINA (Kreisebene)',
+    },
+    {
+      label: 'Autobahn-Verkehrslage',
+      state: moduleState(autobahn.data?.status, autobahn.isLoading),
+      detail: 'Autobahn GmbH (nur Bundesautobahnen)',
+    },
+    {
+      label: 'Erdbeben',
+      state: moduleState(quakes.data?.status, quakes.isLoading),
+      detail: 'GFZ GEOFON (Katalog, 200-km-Umkreis)',
+    },
+    {
+      label: 'Klimanormalwerte',
+      state: moduleState(normals.data?.status, normals.isLoading),
+      detail: normals.data?.data
+        ? `Station ${formatDistanceGerman(normals.data.data.distanceMeters)} entfernt (1991–2020)`
+        : 'DWD CDC (1991–2020)',
+    },
+    {
+      label: 'Kraftstoffpreise',
+      state: moduleState(fuel.data?.status, fuel.isLoading),
+      detail:
+        fuel.data?.status === 'configuration-required'
+          ? 'MTS-K/Tankerkönig (TANKERKOENIG_API_KEY erforderlich)'
+          : 'MTS-K/Tankerkönig',
+    },
+    {
+      label: 'Bahnhofs-Aufzüge',
+      state: moduleState(facilities.data?.status, facilities.isLoading),
+      detail:
+        facilities.data?.status === 'configuration-required'
+          ? 'DB FaSta (DB_CLIENT_ID/DB_API_KEY erforderlich)'
+          : 'DB FaSta (DB-Stationen)',
     },
   ];
 

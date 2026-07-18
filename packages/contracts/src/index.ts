@@ -584,3 +584,151 @@ export const RadarContextSchema = z.object({
   frames: z.array(RadarFrameSchema),
 });
 export type RadarContext = z.infer<typeof RadarContextSchema>;
+
+// ---------------------------------------------------------------------------
+// Civil-protection warnings (BBK NINA) — official all-hazard warnings for the
+// district (Kreis) the place lies in, identified via the official ARS.
+// ---------------------------------------------------------------------------
+
+export const CivilWarningSchema = z.object({
+  id: z.string(),
+  headline: z.string().nullable(),
+  /** Issuing system/provider as delivered (e.g. MOWAS, KATWARN, BIWAPP, LHP). */
+  provider: z.string().nullable(),
+  severity: z.string().nullable(),
+  msgType: z.string().nullable(),
+  sentAt: z.string().nullable(),
+});
+export type CivilWarning = z.infer<typeof CivilWarningSchema>;
+
+export const CivilWarningContextSchema = z.object({
+  /** District-level ARS the dashboard was queried for (12 digits). */
+  ars: z.string(),
+  /** Official municipality name from the territorial assignment (BKG VG250). */
+  municipalityName: z.string().nullable(),
+  warnings: z.array(CivilWarningSchema),
+});
+export type CivilWarningContext = z.infer<typeof CivilWarningContextSchema>;
+
+// ---------------------------------------------------------------------------
+// Autobahn events (Autobahn GmbH) — warnings/closures/roadworks on the
+// federal motorway network only; no statement about other roads.
+// ---------------------------------------------------------------------------
+
+export const AutobahnEventSchema = z.object({
+  id: z.string(),
+  kind: z.enum(['warning', 'closure', 'roadworks']),
+  roadId: z.string(),
+  title: z.string().nullable(),
+  subtitle: z.string().nullable(),
+  coordinates: CoordinatesSchema.nullable(),
+  distanceMeters: z.number().nonnegative().nullable(),
+  startAt: z.string().nullable(),
+  mode: DataModeSchema,
+});
+export type AutobahnEvent = z.infer<typeof AutobahnEventSchema>;
+
+export const AutobahnContextSchema = z.object({
+  events: z.array(AutobahnEventSchema),
+  searchRadiusMeters: z.number().positive(),
+});
+export type AutobahnContext = z.infer<typeof AutobahnContextSchema>;
+
+// ---------------------------------------------------------------------------
+// Seismic events (GFZ GEOFON, FDSN event service) — catalogued earthquakes
+// within a radius/time window; an empty list is a normal, honest outcome.
+// ---------------------------------------------------------------------------
+
+export const SeismicEventSchema = z.object({
+  id: z.string(),
+  time: z.string().nullable(),
+  magnitude: z.number().nullable(),
+  magType: z.string().nullable(),
+  depthKm: z.number().nullable(),
+  coordinates: CoordinatesSchema,
+  distanceMeters: z.number().nonnegative(),
+  locationName: z.string().nullable(),
+  mode: DataModeSchema,
+});
+export type SeismicEvent = z.infer<typeof SeismicEventSchema>;
+
+export const SeismicContextSchema = z.object({
+  events: z.array(SeismicEventSchema),
+  searchRadiusKm: z.number().positive(),
+  windowDays: z.number().positive(),
+});
+export type SeismicContext = z.infer<typeof SeismicContextSchema>;
+
+// ---------------------------------------------------------------------------
+// Climate normals (DWD CDC, 1991–2020) — multi-annual station means; a
+// statistical reference, never a current condition.
+// ---------------------------------------------------------------------------
+
+export const ClimateNormalValueSchema = z.object({
+  parameter: z.enum(['temperature', 'precipitation']),
+  /** Mean for the current month of the 1991–2020 reference period. */
+  monthValue: z.number().nullable(),
+  /** Annual mean/total of the reference period. */
+  yearValue: z.number().nullable(),
+  unit: z.string(),
+  mode: DataModeSchema,
+});
+export type ClimateNormalValue = z.infer<typeof ClimateNormalValueSchema>;
+
+export const ClimateNormalsContextSchema = z.object({
+  stationId: z.string(),
+  stationName: z.string().nullable(),
+  coordinates: CoordinatesSchema,
+  distanceMeters: z.number().nonnegative(),
+  referencePeriod: z.string(),
+  /** Month (1–12, Europe/Berlin) the month values refer to. */
+  month: z.number().min(1).max(12),
+  values: z.array(ClimateNormalValueSchema),
+});
+export type ClimateNormalsContext = z.infer<typeof ClimateNormalsContextSchema>;
+
+// ---------------------------------------------------------------------------
+// Fuel prices (Tankerkönig / MTS-K) — operator-notified prices per station.
+// ---------------------------------------------------------------------------
+
+export const FuelStationSchema = z.object({
+  id: z.string(),
+  name: z.string().nullable(),
+  brand: z.string().nullable(),
+  coordinates: CoordinatesSchema,
+  distanceMeters: z.number().nonnegative(),
+  isOpen: z.boolean().nullable(),
+  e5: z.number().nullable(),
+  e10: z.number().nullable(),
+  diesel: z.number().nullable(),
+  mode: DataModeSchema,
+});
+export type FuelStation = z.infer<typeof FuelStationSchema>;
+
+export const FuelContextSchema = z.object({
+  stations: z.array(FuelStationSchema),
+  searchRadiusKm: z.number().positive(),
+});
+export type FuelContext = z.infer<typeof FuelContextSchema>;
+
+// ---------------------------------------------------------------------------
+// Station facilities (DB FaSta) — elevator/escalator operational status.
+// ---------------------------------------------------------------------------
+
+export const StationFacilitySchema = z.object({
+  id: z.string(),
+  type: z.string(),
+  state: z.string(),
+  description: z.string().nullable(),
+  coordinates: CoordinatesSchema,
+  distanceMeters: z.number().nonnegative(),
+  stationNumber: z.number().nullable(),
+  mode: DataModeSchema,
+});
+export type StationFacility = z.infer<typeof StationFacilitySchema>;
+
+export const StationFacilityContextSchema = z.object({
+  facilities: z.array(StationFacilitySchema),
+  searchRadiusMeters: z.number().positive(),
+});
+export type StationFacilityContext = z.infer<typeof StationFacilityContextSchema>;
