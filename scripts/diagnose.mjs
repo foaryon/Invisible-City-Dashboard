@@ -119,7 +119,15 @@ function countItems(data) {
   return 1;
 }
 
-const PROBLEM_STATUSES = new Set(['source-error', 'unavailable', 'exception']);
+/**
+ * Real endpoint/schema failures. 'unavailable' is NOT in here: it is the
+ * product's honest "no data at this place" statement (e.g. no federal
+ * waterway gauge within 30 km) — listed separately for plausibility review.
+ */
+const PROBLEM_STATUSES = new Set(['source-error', 'exception']);
+
+/** Pause between locations — Overpass fair use (slots are per IP). */
+const LOCATION_PACING_MS = 3000;
 
 /** Run one adapter call, attributing the HTTP traffic it produced. */
 async function measure(location, provider, fn) {
@@ -131,7 +139,7 @@ async function measure(location, provider, fn) {
   try {
     envelope = await fn();
     status = envelope && envelope.status ? envelope.status : 'unknown';
-    if (PROBLEM_STATUSES.has(status) || status === 'stale' || status === 'partial') {
+    if (status !== 'ok' && status !== 'configuration-required') {
       error = envelope && envelope.statusDetail ? envelope.statusDetail : null;
     }
   } catch (err) {
@@ -216,7 +224,8 @@ async function runOnce() {
   );
 
   const all = [];
-  for (const loc of LOCATIONS) {
+  for (const [i, loc] of LOCATIONS.entries()) {
+    if (i > 0) await delay(LOCATION_PACING_MS); // Overpass fair-use pacing
     const records = await runLocation(loc, ctx);
     all.push(...records);
     console.log(`\n── ${loc.name} (${loc.latitude}, ${loc.longitude}) ──`);
@@ -234,10 +243,12 @@ async function runOnce() {
   cache.close();
 
   const problems = all.filter((r) => PROBLEM_STATUSES.has(r.status));
+  const absences = all.filter((r) => r.status === 'unavailable');
   const needsConfig = all.filter((r) => r.status === 'configuration-required');
   console.log(`\n═══ ZUSAMMENFASSUNG ═══`);
   console.log(
-    `${all.length} Aufrufe · ${problems.length} Problem(e) (source-error/unavailable/exception) · ` +
+    `${all.length} Aufrufe · ${problems.length} Problem(e) (source-error/exception) · ` +
+      `${absences.length} ehrliche Absenz(en) (unavailable) · ` +
       `${needsConfig.length} „configuration-required" (erwartet ohne Keys).`,
   );
   if (problems.length > 0) {
@@ -248,6 +259,16 @@ async function runOnce() {
         location: r.location,
         status: r.status,
         http: r.httpCode ?? '—',
+        note: r.error ?? '',
+      })),
+    );
+  }
+  if (absences.length > 0) {
+    console.log(`\nEHRLICHE ABSENZEN (Plausibilität prüfen, kein Endpoint-Fehler):`);
+    console.table(
+      absences.map((r) => ({
+        provider: r.provider,
+        location: r.location,
         note: r.error ?? '',
       })),
     );

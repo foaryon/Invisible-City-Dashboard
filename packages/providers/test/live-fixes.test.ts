@@ -341,6 +341,53 @@ describe('UBA — decommissioned & dormant station handling (live-verified 2026-
   });
 });
 
+describe('Overpass — public-mirror fallback on throttling', () => {
+  const overpassBody = {
+    elements: [
+      {
+        type: 'node',
+        id: 1,
+        lat: 49.7596,
+        lon: 6.6439,
+        tags: { amenity: 'pharmacy', name: 'Mirror-Apotheke' },
+      },
+    ],
+    osm3s: { timestamp_osm_base: '2026-07-18T12:00:00Z' },
+  };
+
+  it('serves from the mirror when the primary instance returns 429', async () => {
+    const { getPoiContext } = await import('../src/adapters/overpass.js');
+    const ctx: AdapterContext = {
+      cache: createMemoryCache(),
+      config: testConfig,
+      fetchImpl: (url: string) =>
+        Promise.resolve(
+          url.includes('overpass-api.de')
+            ? new Response('slow down', { status: 429 })
+            : new Response(JSON.stringify(overpassBody), {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' },
+              }),
+        ),
+    };
+    const env = await getPoiContext({ latitude: 49.7596, longitude: 6.6439 }, ctx);
+    expect(env.status).toBe('ok');
+    expect(env.data!.pois[0]!.name).toBe('Mirror-Apotheke');
+  });
+
+  it('still surfaces the throttle honestly when BOTH instances are limited', async () => {
+    const { getPoiContext } = await import('../src/adapters/overpass.js');
+    const ctx: AdapterContext = {
+      cache: createMemoryCache(),
+      config: testConfig,
+      fetchImpl: () => Promise.resolve(new Response('slow down', { status: 429 })),
+    };
+    const env = await getPoiContext({ latitude: 49.7596, longitude: 6.6439 }, ctx);
+    expect(env.status).toBe('source-error');
+    expect(env.statusDetail).toContain('429');
+  });
+});
+
 describe('Photon — city-state Bundesland fallback (live-verified 2026-07-18)', () => {
   it("derives state 'Berlin' when Photon omits state for the city-state", async () => {
     const body = {

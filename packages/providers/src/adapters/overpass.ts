@@ -14,6 +14,7 @@ import {
 import { makeEvidence, distanceMeters } from '@invisible-city/evidence';
 import { getEffectiveProvider } from '../manifest.js';
 import { requestFingerprint } from '../cache.js';
+import { ProviderHttpError } from '../http.js';
 import { fetchJsonWithCache, errorEnvelope, type AdapterContext } from '../runner.js';
 
 const RawElement = z.object({
@@ -76,11 +77,34 @@ out center 200;`;
   const url = ctx.config.overpassUrl;
 
   try {
-    const result = await fetchJsonWithCache(provider, fingerprint, url, ctx, {
+    const init: RequestInit = {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: `data=${encodeURIComponent(query)}`,
-    });
+    };
+    // Client timeout ABOVE the query's server-side [timeout:25] (the server
+    // must win the race), and no retries — a heavy Overpass query is never
+    // blindly re-submitted against a strained public instance.
+    const httpOpts = { timeoutMs: 30_000, retries: 0 };
+    let result;
+    try {
+      result = await fetchJsonWithCache(provider, fingerprint, url, ctx, init, undefined, httpOpts);
+    } catch (err) {
+      // Primary instance throttled (429) or transiently failed → try the
+      // configured public mirror ONCE (same API, same OSM data, own fair-use
+      // serialization). Same fingerprint, so the shared cache still applies.
+      const fallback = ctx.config.overpassFallbackUrl;
+      if (!(err instanceof ProviderHttpError) || !fallback || fallback === url) throw err;
+      result = await fetchJsonWithCache(
+        provider,
+        fingerprint,
+        fallback,
+        ctx,
+        init,
+        undefined,
+        httpOpts,
+      );
+    }
     const parsed = OverpassResponse.safeParse(result.raw);
     if (!parsed.success) {
       return {

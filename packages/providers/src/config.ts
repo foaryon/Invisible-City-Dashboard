@@ -14,6 +14,12 @@ export interface ProviderConfig {
   dwdWfsUrl: string;
   ubaBaseUrl: string;
   overpassUrl: string;
+  /**
+   * Public Overpass mirror tried ONCE when the primary instance throttles
+   * (429) or fails transiently — same API, same OSM data, own fair-use
+   * serialization. Empty string disables the fallback.
+   */
+  overpassFallbackUrl: string;
   photonUrl: string;
   /** PEGELONLINE REST API base (WSV water levels). */
   pegelonlineUrl: string;
@@ -82,6 +88,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ProviderConfig
     dwdWfsUrl: str(env, 'DWD_WFS_URL', 'https://maps.dwd.de/geoserver/dwd/ows'),
     ubaBaseUrl: str(env, 'UBA_BASE_URL', 'https://www.umweltbundesamt.de/api/air_data/v3'),
     overpassUrl: str(env, 'OVERPASS_URL', 'https://overpass-api.de/api/interpreter'),
+    overpassFallbackUrl: str(
+      env,
+      'OVERPASS_FALLBACK_URL',
+      'https://overpass.kumi.systems/api/interpreter',
+    ),
     photonUrl: str(env, 'PHOTON_URL', 'https://photon.komoot.io'),
     pegelonlineUrl: str(
       env,

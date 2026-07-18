@@ -34,12 +34,46 @@ describe('policedFetch — HTTP policy & error mapping', () => {
   });
 
   it('maps other HTTP errors to an http error (not retried)', async () => {
+    let calls = 0;
     await expect(
       policedFetch('https://example.org/err', {
         retries: 2,
-        fetchImpl: () => Promise.resolve(new Response('boom', { status: 500 })),
+        fetchImpl: () => {
+          calls++;
+          return Promise.resolve(new Response('boom', { status: 500 }));
+        },
       }),
     ).rejects.toMatchObject({ kind: 'http', statusCode: 500 });
+    expect(calls).toBe(1);
+  });
+
+  it('retries gateway-transient statuses (502/503/504) once and can recover', async () => {
+    let calls = 0;
+    const res = await policedFetch('https://example.org/gw', {
+      retries: 1,
+      fetchImpl: () => {
+        calls++;
+        return Promise.resolve(
+          calls === 1 ? new Response('overloaded', { status: 503 }) : jsonResponse({ ok: true }),
+        );
+      },
+    });
+    expect(res.status).toBe(200);
+    expect(calls).toBe(2);
+  });
+
+  it('surfaces a persistent 504 as an http error after bounded retries', async () => {
+    let calls = 0;
+    await expect(
+      policedFetch('https://example.org/gw2', {
+        retries: 1,
+        fetchImpl: () => {
+          calls++;
+          return Promise.resolve(new Response('gateway timeout', { status: 504 }));
+        },
+      }),
+    ).rejects.toMatchObject({ kind: 'http', statusCode: 504 });
+    expect(calls).toBe(2);
   });
 
   it('maps a transient network failure to a network error after bounded retries', async () => {

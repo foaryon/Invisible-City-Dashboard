@@ -76,9 +76,15 @@ export function SearchBox() {
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       setActive((a) => Math.max(a - 1, 0));
-    } else if (e.key === 'Enter' && active >= 0) {
-      e.preventDefault();
-      choose(results[active]!);
+    } else if (e.key === 'Enter') {
+      // Enter confirms the highlighted result — or the FIRST result when the
+      // user typed and confirmed without arrow-key navigation (the common
+      // "type city, press Enter" flow must land on the expected place).
+      const target = active >= 0 ? results[active] : results[0];
+      if (target) {
+        e.preventDefault();
+        choose(target);
+      }
     } else if (e.key === 'Escape') {
       setOpen(false);
     }

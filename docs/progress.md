@@ -115,8 +115,14 @@ coverage · blocked source issues · next smallest shippable slice.
     user selection; caching strategy only).
 - **Tested:** 146 provider tests + 28 web tests green; live: 133 diagnose calls, C-phase
   API battery (400s, demo gating, readiness, edge coords, cache).
-- **Gap/next:** Overpass public instance throttles bursts (429) and can 504 on dense
-  areas — honest source-error today; consider self-hosting for sustained use.
+- **Hardening (same day):** gateway-transient 502/503/504 get one bounded retry (429
+  never); Overpass got a public-mirror fallback (`OVERPASS_FALLBACK_URL`, kumi.systems),
+  a client timeout above its server-side `[timeout:25]` and zero blind retries; Enter in
+  the search box confirms the first result; startup prewarm extended to all national
+  datasets (Autobahn, ODL, UBA directory, CDC, pollen, UV).
+- **Gap/next:** under repeated full-sweep load both public Overpass instances still
+  time out sporadically (environmental; the app serves its visibly-labelled 6-h cache
+  then) — self-hosting remains the fix for sustained/bulk use.
 
 ## Next smallest shippable slice
 

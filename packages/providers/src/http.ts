@@ -29,6 +29,7 @@ interface HostPolicy {
 
 const HOST_POLICIES: Record<string, HostPolicy> = {
   'overpass-api.de': { minIntervalMs: 2000, serialize: true },
+  'overpass.kumi.systems': { minIntervalMs: 2000, serialize: true },
   'photon.komoot.io': { minIntervalMs: 1000, serialize: true },
   'nominatim.openstreetmap.org': { minIntervalMs: 1100, serialize: true },
 };
@@ -87,7 +88,15 @@ export async function policedFetch(url: string, opts: PolicedFetchOptions = {}):
         return res;
       } catch (err) {
         lastError = err;
-        if (err instanceof ProviderHttpError) throw err; // no retry on policy/HTTP errors
+        if (err instanceof ProviderHttpError) {
+          // Gateway-transient statuses (502/503/504) get the same bounded retry
+          // as network errors — a single overload blip should not surface as a
+          // module outage. 429 and all other HTTP errors are never retried.
+          const transient =
+            err.kind === 'http' &&
+            (err.statusCode === 502 || err.statusCode === 503 || err.statusCode === 504);
+          if (!transient || attempt === retries) throw err;
+        }
         // AbortError / network errors are transient → bounded retry
       } finally {
         clearTimeout(timer);

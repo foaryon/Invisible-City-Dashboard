@@ -78,6 +78,16 @@ describe('SearchBox', () => {
     expect(useAppStore.getState().selectedPlace?.label).toBe('Berlin, Berlin');
   });
 
+  it('Enter without arrow navigation confirms the FIRST result (type → confirm flow)', async () => {
+    searchMock.mockResolvedValue(germanResults());
+    renderWithProviders(<SearchBox />);
+    const input = screen.getByRole('combobox', { name: /Ort, Adresse/ });
+    fireEvent.change(input, { target: { value: 'berlin' } });
+    await screen.findByRole('option', { name: 'Berlin, Berlin' });
+    fireEvent.keyDown(input, { key: 'Enter' }); // no ArrowDown first
+    expect(useAppStore.getState().selectedPlace?.id).toBe('osm:N:1');
+  });
+
   it('shows an explicit error state when the source fails (no invented results)', async () => {
     searchMock.mockResolvedValue({
       status: 'source-error',

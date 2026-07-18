@@ -57,10 +57,13 @@ export interface ServerOptions {
   webRoot?: string;
   /**
    * Fire-and-forget cache prewarm on startup (production entry only, never in
-   * tests): the Autobahn adapter aggregates ALL motorways into one nationally
-   * shared snapshot (~400 upstream requests, ~3 s). Warming it at boot moves
-   * that cost off the user's first place selection. Same data, same source
-   * policy — a caching strategy, not a data change.
+   * tests): several providers are NATIONAL datasets whose first fetch pays the
+   * whole cost regardless of place (Autobahn all-roads snapshot ~3 s, BfS ODL
+   * full probe layer, UBA station directory, CDC normal tables, DWD pollen +
+   * UV bulletins). Warming them at boot moves that cost off the user's first
+   * place selection. Same data, same source policy — a caching strategy, not a
+   * data change. Overpass is deliberately NOT prewarmed (per-place queries,
+   * strict fair-use).
    */
   prewarm?: boolean;
 }
@@ -96,8 +99,16 @@ export async function buildServer(opts: ServerOptions = {}): Promise<FastifyInst
 
   if (opts.prewarm) {
     // Non-blocking; module honesty is unaffected — a failed prewarm simply
-    // means the first user selection pays the cold cost as before.
-    void getAutobahnContext(PREWARM_COORDS, ctx).catch(() => undefined);
+    // means the first user selection pays the cold cost as before. Different
+    // hosts, so parallel is polite; per-host policies still apply inside.
+    void Promise.allSettled([
+      getAutobahnContext(PREWARM_COORDS, ctx), // national all-roads snapshot
+      getRadiationContext(PREWARM_COORDS, ctx), // full ODL probe layer
+      getAirStationContext(PREWARM_COORDS, ctx), // UBA station directory (24 h TTL)
+      getClimateNormalsContext(PREWARM_COORDS, ctx), // CDC index + tables (30 d TTL)
+      getPollenContext('Hessen', ctx), // s31fg.json bulletin (all regions)
+      getUvContext(PREWARM_COORDS, ctx), // uvi.json bulletin (all cities)
+    ]);
   }
 
   app.addHook('onClose', async () => cache.close());

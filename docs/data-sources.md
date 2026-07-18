@@ -84,6 +84,10 @@ documentation, license, attribution and technical terms before activation.
   query at a time, no parallel queries**; queue >15 s → HTTP 429. Enforced by the HTTP
   layer's per-host serialization. For sustained use, self-host or use Geofabrik extracts —
   **no browser bulk loads**.
+- **Mirror fallback (2026-07-18):** when the primary instance throttles (429) or fails
+  transiently, the adapter tries the public mirror `overpass.kumi.systems` ONCE (same
+  API, same OSM data, own per-host serialization; `OVERPASS_FALLBACK_URL`, empty
+  disables). Both limited → honest source-error, unchanged.
 - **License:** **ODbL.** Attribution `© OpenStreetMap contributors`, linked to
   openstreetmap.org/copyright.
 - **Cache TTL:** 21600 s (6 h).

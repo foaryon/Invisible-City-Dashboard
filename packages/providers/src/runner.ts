@@ -41,6 +41,13 @@ export async function fetchJsonWithCache<T = unknown>(
    * provider's default measurement TTL.
    */
   ttlSecondsOverride?: number,
+  /**
+   * Per-request HTTP tuning. Overpass needs a client timeout LONGER than its
+   * server-side `[timeout:25]` (otherwise the client aborts queries the server
+   * would still answer, then re-submits the expensive query) and zero retries
+   * (never blindly repeat a heavy query against a strained public instance).
+   */
+  httpOpts?: { timeoutMs?: number; retries?: number },
 ): Promise<RawResult<T>> {
   if (provider.status !== 'verified') {
     throw new ProviderNotLiveError(provider.providerId, provider.status);
@@ -58,6 +65,8 @@ export async function fetchJsonWithCache<T = unknown>(
   try {
     const res = await policedFetch(url, {
       init: init ?? {},
+      ...(httpOpts?.timeoutMs !== undefined ? { timeoutMs: httpOpts.timeoutMs } : {}),
+      ...(httpOpts?.retries !== undefined ? { retries: httpOpts.retries } : {}),
       ...(ctx.fetchImpl ? { fetchImpl: ctx.fetchImpl } : {}),
     });
     const raw = (await res.json()) as T;
