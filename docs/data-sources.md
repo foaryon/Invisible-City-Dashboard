@@ -400,6 +400,10 @@ Still open:
 7. **Licenses** — PEGELONLINE dl-de/zero-2-0, Autobahn dl-de/by-2-0, GEOFON CC BY 4.0
    wording against the current terms pages.
 8. **DWD pollen** — optional polygon-based partregion assignment.
-9. **Tankerkönig** — `list.php` schema against a real key.
-10. **DB FaSta** — schema against real credentials.
-11. **BVL Lebensmittelwarnung** — endpoint/auth semantics before any adapter is built.
+9. **BVL Lebensmittelwarnung** — endpoint/auth semantics before any adapter is built.
+
+**Additionally live-verified 2026-07-18 (evening, with real credentials/feed):**
+Tankerkönig `list.php` (stations, `false`→null price semantics, distances) ·
+DB FaSta v2 (equipment types/states/coordinates at Berlin Hbf) · DELFI GTFS via
+the nationwide gtfs.de feed (import → scheduled departures round-trip incl.
+>24 h services).

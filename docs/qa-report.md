@@ -30,6 +30,13 @@ offshore/alpine absences, `configuration-required` for key-gated providers.
 CI; lint/typecheck/prettier clean; web + single-file server builds pass;
 `/diagnose.html`: 11/11 workflow assertions PASS.
 
+**Credentialed activation (2026-07-18 evening):** with local `.env` credentials
+both remaining schemas verified live on first contact — Tankerkönig (real
+prices, e.g. Trier ARAL 0.6 km E10 2.159 €) and DB FaSta (Berlin Hbf, 10
+facilities with live states). DELFI GTFS live via the nationwide feed. 19 of 22
+manifest providers live on this machine (open: CAMS key, GTFS-RT feed, BVL
+candidate gate).
+
 **Known environmental constraint:** both public Overpass instances throttle
 sustained sweep load (rotating, transient; app-level mitigations: 6 h cache
 with visible staleness, mirror fallback, fair-use serialization). Self-hosting
