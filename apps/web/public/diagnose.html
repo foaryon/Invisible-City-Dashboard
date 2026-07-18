@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Diagnose — The Invisible City</title>
+    <style>
+      :root {
+        --bg: #10141a;
+        --panel: #171d26;
+        --panel2: #1e2632;
+        --border: #2a3442;
+        --text: #dfe7f1;
+        --dim: #9fb0c3;
+        --faint: #6b7a8d;
+        --ok: #5ec269;
+        --warn: #e0b04b;
+        --err: #e06c5b;
+        --info: #5b9bd5;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          13px/1.5 system-ui,
+          -apple-system,
+          'Segoe UI',
+          sans-serif;
+        padding: 20px;
+      }
+      h1 {
+        font-size: 18px;
+        margin: 0 0 2px;
+      }
+      .sub {
+        color: var(--faint);
+        font-size: 12px;
+        margin-bottom: 16px;
+      }
+      .bar {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin-bottom: 14px;
+      }
+      button,
+      select {
+        background: var(--panel2);
+        color: var(--text);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 7px 14px;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      button:hover {
+        border-color: var(--info);
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: default;
+      }
+      #summary {
+        padding: 10px 14px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--panel);
+        margin-bottom: 14px;
+        font-size: 13px;
+      }
+      #summary.allok {
+        border-color: var(--ok);
+      }
+      #summary.problems {
+        border-color: var(--err);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 5px 10px;
+        border-bottom: 1px solid var(--border);
+        font-size: 12px;
+        vertical-align: top;
+      }
+      th {
+        color: var(--dim);
+        font-weight: 600;
+        background: var(--panel2);
+        position: sticky;
+        top: 0;
+      }
+      td.num {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+      .s-ok {
+        color: var(--ok);
+      }
+      .s-partial,
+      .s-stale,
+      .s-unavailable {
+        color: var(--warn);
+      }
+      .s-source-error,
+      .s-exception {
+        color: var(--err);
+        font-weight: 600;
+      }
+      .s-configuration-required {
+        color: var(--info);
+      }
+      .s-pending {
+        color: var(--faint);
+      }
+      .note {
+        color: var(--faint);
+        max-width: 480px;
+      }
+      .section {
+        margin: 18px 0 8px;
+        font-size: 14px;
+        font-weight: 600;
+      }
+      .hint {
+        color: var(--faint);
+        font-size: 11px;
+        margin-top: 14px;
+      }
+      a {
+        color: var(--info);
+      }
+      .assert-pass {
+        color: var(--ok);
+        font-weight: 600;
+      }
+      .assert-fail {
+        color: var(--err);
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Diagnose — The Invisible City</h1>
+    <div class="sub">
+      Führt die Debugging-Suite direkt im Browser aus: alle Module über die laufende API, je
+      Referenzort, mit Status, Trefferzahl und Laufzeit. Ehrliche Zustände (unavailable /
+      configuration-required) sind keine Fehler. <a href="/">← zurück zum Dashboard</a>
+    </div>
+
+    <div class="bar">
+      <select id="locSel"></select>
+      <button id="runBtn">Diagnose ausführen</button>
+      <button id="watchBtn">Dauerlauf: aus</button>
+      <span id="clock" class="hint"></span>
+    </div>
+
+    <div id="summary">Noch kein Lauf gestartet.</div>
+
+    <div class="section">Workflow-Prüfungen (Suche → Pointer, Reverse, Gesundheit)</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Prüfung</th>
+          <th>Ergebnis</th>
+          <th>Details</th>
+        </tr>
+      </thead>
+      <tbody id="asserts"></tbody>
+    </table>
+
+    <div class="section">Module je Ort</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Ort</th>
+          <th>Modul</th>
+          <th>Status</th>
+          <th class="num">Items</th>
+          <th class="num">ms</th>
+          <th>Hinweis</th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+
+    <p class="hint">
+      Overpass (Orte &amp; kartierter Kontext) läuft über die Fair-Use-Serialisierung und den
+      6-h-Cache des Servers; wiederholte Läufe belasten die Quelle nicht erneut. Dauerlauf: alle 5
+      Minuten.
+    </p>
+
+    <script>
+      const LOCATIONS = [
+        { name: 'Trier', lat: 49.7596, lon: 6.6439 },
+        { name: 'Berlin', lat: 52.52, lon: 13.405 },
+        { name: 'München', lat: 48.137, lon: 11.575 },
+        { name: 'Hamburg', lat: 53.551, lon: 9.993 },
+        { name: 'Köln', lat: 50.938, lon: 6.96 },
+        { name: 'Eifel (ländlich)', lat: 50.3, lon: 6.6 },
+        { name: 'Sylt (Insel)', lat: 54.9, lon: 8.3 },
+      ];
+      const MODULES = [
+        ['Wetter', 'weather'],
+        ['Amtliche Warnungen', 'warnings'],
+        ['Zivilschutz (NINA)', 'civil-warnings'],
+        ['Regenradar', 'radar'],
+        ['Klimanormalwerte', 'climate-normals'],
+        ['Luft: Station (UBA)', 'air/stations'],
+        ['Luft: Modell (CAMS)', 'air/model'],
+        ['Pollenflug', 'pollen'],
+        ['UV-Index', 'uv'],
+        ['Wasserstände', 'water'],
+        ['Radioaktivität (ODL)', 'radiation'],
+        ['Erdbeben (GEOFON)', 'quakes'],
+        ['Orte & POIs (OSM)', 'pois'],
+        ['Autobahn', 'autobahn'],
+        ['Kraftstoffpreise', 'fuel'],
+        ['Bahnhofs-Aufzüge', 'station-facilities'],
+        ['ÖPNV', 'transit'],
+      ];
+      const ITEM_KEYS = [
+        'stations',
+        'warnings',
+        'events',
+        'pois',
+        'frames',
+        'days',
+        'values',
+        'facilities',
+        'partregions',
+        'hours',
+      ];
+      const PROBLEM = new Set(['source-error', 'exception']);
+
+      const rowsEl = document.getElementById('rows');
+      const assertsEl = document.getElementById('asserts');
+      const summaryEl = document.getElementById('summary');
+      const runBtn = document.getElementById('runBtn');
+      const watchBtn = document.getElementById('watchBtn');
+      const locSel = document.getElementById('locSel');
+      const clockEl = document.getElementById('clock');
+
+      locSel.innerHTML =
+        '<option value="all">Alle Referenzorte</option>' +
+        LOCATIONS.map((l, i) => `<option value="${i}">${l.name}</option>`).join('');
+
+      function countItems(data) {
+        if (data == null) return 0;
+        if (Array.isArray(data)) return data.length;
+        for (const k of ITEM_KEYS) if (Array.isArray(data[k])) return data[k].length;
+        return 1;
+      }
+
+      function esc(s) {
+        return String(s ?? '').replace(
+          /[&<>"]/g,
+          (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c],
+        );
+      }
+
+      async function call(path, timeoutMs = 65000) {
+        const t0 = performance.now();
+        try {
+          const res = await fetch(path, { signal: AbortSignal.timeout(timeoutMs) });
+          const json = await res.json();
+          return { json, ms: Math.round(performance.now() - t0), httpOk: res.ok };
+        } catch (e) {
+          return {
+            json: null,
+            ms: Math.round(performance.now() - t0),
+            httpOk: false,
+            err: e.message,
+          };
+        }
+      }
+
+      function rowHtml(loc, label, r) {
+        const status = r.json ? (r.json.status ?? 'unknown') : 'exception';
+        const detail = r.json?.statusDetail ?? r.err ?? '';
+        const items = r.json ? countItems(r.json.data) : 0;
+        return (
+          `<tr><td>${esc(loc)}</td><td>${esc(label)}</td>` +
+          `<td class="s-${esc(status)}">${esc(status)}</td>` +
+          `<td class="num">${items}</td><td class="num">${r.ms}</td>` +
+          `<td class="note">${esc(detail).slice(0, 160)}</td></tr>`
+        );
+      }
+
+      function assertRow(name, pass, details) {
+        return (
+          `<tr><td>${esc(name)}</td>` +
+          `<td class="${pass ? 'assert-pass' : 'assert-fail'}">${pass ? 'PASS' : 'FAIL'}</td>` +
+          `<td class="note">${esc(details)}</td></tr>`
+        );
+      }
+
+      async function runAsserts() {
+        assertsEl.innerHTML = '<tr><td colspan="3" class="s-pending">läuft …</td></tr>';
+        const out = [];
+
+        const health = await call('/api/health', 10000);
+        out.push(
+          assertRow(
+            'API erreichbar (/api/health)',
+            health.json?.status === 'ok',
+            health.json ? `Manifest ${health.json.manifestVersion} · ${health.ms} ms` : health.err,
+          ),
+        );
+
+        // Pointer-Assertion: die Suche nach "Trier" muss als ERSTES Ergebnis
+        // Koordinaten bei (49.76, 6.64) liefern — Enter wählt genau dieses.
+        const search = await call('/api/search?q=Trier', 20000);
+        const p = search.json?.data?.[0]?.place;
+        const dLat = p ? Math.abs(p.coordinates.latitude - 49.7596) : 99;
+        const dLon = p ? Math.abs(p.coordinates.longitude - 6.6439) : 99;
+        out.push(
+          assertRow(
+            'Suche „Trier" → 1. Treffer liegt bei Trier (Pointer-Ziel)',
+            !!p && dLat < 0.08 && dLon < 0.08,
+            p
+              ? `${p.label} @ ${p.coordinates.latitude.toFixed(4)}, ${p.coordinates.longitude.toFixed(4)} · ${search.ms} ms`
+              : (search.json?.statusDetail ?? search.err ?? 'kein Ergebnis'),
+          ),
+        );
+
+        const rev = await call('/api/reverse?lat=52.52&lon=13.405', 20000);
+        const rp = rev.json?.data?.[0]?.place;
+        out.push(
+          assertRow(
+            'Reverse Berlin-Mitte → Bundesland „Berlin" (Stadtstaaten-Fix)',
+            rp?.state === 'Berlin',
+            rp
+              ? `${rp.label} · state=${rp.state ?? '—'} · ${rev.ms} ms`
+              : (rev.err ?? 'kein Ergebnis'),
+          ),
+        );
+
+        const nina = await call('/api/civil-warnings?lat=49.7596&lon=6.6439', 30000);
+        out.push(
+          assertRow(
+            'NINA Trier → amtliche Gebietszuordnung (ARS) vorhanden',
+            typeof nina.json?.data?.ars === 'string' && nina.json.data.ars.length === 12,
+            nina.json?.data
+              ? `ARS ${nina.json.data.ars} · ${nina.json.data.municipalityName ?? '—'} · ${nina.ms} ms`
+              : (nina.json?.statusDetail ?? nina.err ?? ''),
+          ),
+        );
+
+        assertsEl.innerHTML = out.join('');
+        return out.filter((h) => h.includes('assert-fail')).length;
+      }
+
+      async function runOnce() {
+        runBtn.disabled = true;
+        const sel = locSel.value;
+        const locs = sel === 'all' ? LOCATIONS : [LOCATIONS[Number(sel)]];
+        rowsEl.innerHTML = '';
+        summaryEl.className = '';
+        summaryEl.textContent = 'Lauf gestartet …';
+
+        const failedAsserts = await runAsserts();
+
+        let calls = 0,
+          problems = 0,
+          absences = 0,
+          config = 0;
+        for (const loc of locs) {
+          const results = await Promise.all(
+            MODULES.map(async ([label, ep]) => {
+              const r = await call(`/api/${ep}?lat=${loc.lat}&lon=${loc.lon}`);
+              return [label, r];
+            }),
+          );
+          for (const [label, r] of results) {
+            calls++;
+            const status = r.json?.status ?? 'exception';
+            if (PROBLEM.has(status)) problems++;
+            else if (status === 'unavailable') absences++;
+            else if (status === 'configuration-required') config++;
+            rowsEl.insertAdjacentHTML('beforeend', rowHtml(loc.name, label, r));
+          }
+          summaryEl.textContent = `${loc.name} fertig — ${calls} Aufrufe bisher …`;
+        }
+
+        const okAll = problems === 0 && failedAsserts === 0;
+        summaryEl.className = okAll ? 'allok' : 'problems';
+        summaryEl.innerHTML =
+          `<strong>${okAll ? '✓ Suite bestanden' : '✗ Befunde vorhanden'}</strong> — ` +
+          `${calls} Modulaufrufe · <span class="s-source-error">${problems} Problem(e)</span> · ` +
+          `<span class="s-unavailable">${absences} ehrliche Absenz(en)</span> · ` +
+          `<span class="s-configuration-required">${config} configuration-required (ohne Keys erwartet)</span> · ` +
+          `${failedAsserts} fehlgeschlagene Workflow-Prüfung(en)`;
+        clockEl.textContent = 'Letzter Lauf: ' + new Date().toLocaleTimeString('de-DE');
+        runBtn.disabled = false;
+      }
+
+      let watchTimer = null;
+      watchBtn.addEventListener('click', () => {
+        if (watchTimer) {
+          clearInterval(watchTimer);
+          watchTimer = null;
+          watchBtn.textContent = 'Dauerlauf: aus';
+        } else {
+          watchTimer = setInterval(runOnce, 5 * 60 * 1000);
+          watchBtn.textContent = 'Dauerlauf: an (5 min)';
+          void runOnce();
+        }
+      });
+      runBtn.addEventListener('click', runOnce);
+    </script>
+  </body>
+</html>
