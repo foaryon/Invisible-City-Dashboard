@@ -85,3 +85,31 @@ autobahn, geofon, cdc-normals, tankerkoenig, db-fasta, transit, overpass.
 **Out of scope here:** Playwright E2E (runs in CI, fixture-based), GTFS import
 round-trip (needs a feed), CAMS/Tankerkönig/FaSta live paths (need keys — the
 harness will verify them automatically once a `.env` provides credentials).
+
+---
+
+## Run record — 2026-07-18
+
+- **A (selection):** ✅ A1–A10 pass. A8 (pointer-jump race) root-caused — a
+  stale reverse-geocode response overrode a newer selection — fixed in
+  `apps/web/src/selection.ts` with 4 regression tests; Enter now confirms the
+  first result (unit + E2E). A6/A7 verified live (Chorin resolves with state;
+  offshore stays an honest provisional point).
+- **B (data layer):** ✅ after fixes. Three sweeps (133 calls each): initial 12
+  findings → 7 real bugs fixed (UBA host + decommissioned stations, BKG
+  deegree bbox+PiP, CDC filename discovery, Autobahn numeric coordinates,
+  Photon city-state, plus the A8 race and prewarm) → final state: every
+  provider green fleet-wide. Remaining sporadic findings are Overpass
+  public-instance capacity under repeated sweep load (rotating locations,
+  fast successes in between; mirror fallback + visibly-stale cache absorb
+  them in the app).
+- **C (API surface):** ✅ all — invalid inputs 400, demo never leaks without
+  `ENABLE_DEMO`, readiness consistent (22 manifest entries), boundary coords
+  honest, warm cache ~80 ms.
+- **D (UI modules):** ✅ via Playwright (12/12 incl. axe) + live API
+  equivalents (NINA municipality, CDC values, UBA measurements for Trier &
+  Berlin). Prewarm: national modules answer for a never-queried city in
+  51–179 ms.
+- **E (resilience):** ✅ race tests, repeat-run stability, honest source-errors
+  under throttling; production bundle (`build:server`) boots, serves API + SPA.
+- **Gate:** 226 Vitest + 12 Playwright green locally AND in CI (`916f2df`).
