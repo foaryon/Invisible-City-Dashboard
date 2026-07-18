@@ -13,7 +13,6 @@ import {
   usePollen,
   useUv,
   useRadar,
-  useEmitters,
 } from '../queries.js';
 
 interface Row {
@@ -81,7 +80,6 @@ export function CoverageMatrix() {
   const pollen = usePollen(selectedPlace, demoMode);
   const uv = useUv(selectedPlace, demoMode);
   const radar = useRadar(selectedPlace, demoMode);
-  const emitters = useEmitters(selectedPlace, demoMode);
 
   if (!selectedPlace) {
     return (
@@ -176,14 +174,6 @@ export function CoverageMatrix() {
       detail: radiation.data?.data?.stations?.[0]
         ? `Sonde ${formatDistanceGerman(radiation.data.data.stations[0].distanceMeters)} entfernt`
         : 'BfS ODL-Messnetz',
-    },
-    {
-      label: 'Gemeldete Freisetzungen',
-      state: moduleState(emitters.data?.status, emitters.isLoading),
-      detail:
-        emitters.data?.status === 'configuration-required'
-          ? 'Thru.de/PRTR (PRTR_CSV_PATH oder PRTR_CSV_URL erforderlich)'
-          : 'Thru.de/PRTR (Jahresmeldungen)',
     },
   ];
 

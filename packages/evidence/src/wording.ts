@@ -17,7 +17,6 @@ export const MODE_LABEL_DE: Record<DataMode, string> = {
   cached: 'Zwischengespeichert',
   unavailable: 'Nicht verfügbar',
   demo: 'Demo',
-  reported: 'Gemeldet (Jahreswert)',
 };
 
 export const AVAILABILITY_LABEL_DE: Record<AvailabilityState, string> = {

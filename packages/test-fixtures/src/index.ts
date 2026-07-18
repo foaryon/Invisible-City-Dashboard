@@ -461,15 +461,6 @@ export const brightskyRadarFixture = {
   latlon_position: { x: 1.2, y: 1.4 },
 };
 
-/** Documented-shape Thru.de PRTR CSV export (semicolon-separated, German decimals). */
-export const prtrCsvFixture = [
-  'Berichtsjahr;Name der Betriebseinrichtung;Haupttätigkeit;Geogr. Breite;Geogr. Länge;Schadstoff;Freisetzung Menge (kg);Umweltmedium',
-  '2023;Heizkraftwerk Demo-Mitte;Verbrennung von Brennstoffen;52,5211;13,4180;CO2 (Kohlendioxid);1250000000;Luft',
-  '2023;Heizkraftwerk Demo-Mitte;Verbrennung von Brennstoffen;52,5211;13,4180;NOx (Stickoxide);210000;Luft',
-  '2022;Heizkraftwerk Demo-Mitte;Verbrennung von Brennstoffen;52,5211;13,4180;CO2 (Kohlendioxid);1310000000;Luft',
-  '2023;Klärwerk Demo-Nord;Abwasserbehandlung;52,5891;13,3712;Stickstoff gesamt;98000;Wasser',
-].join('\n');
-
 /** Malformed payloads for negative tests (schema rejection paths). */
 export const malformedFixtures = {
   brightsky: { wetter: [] },

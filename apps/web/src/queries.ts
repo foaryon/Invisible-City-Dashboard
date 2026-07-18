@@ -108,15 +108,6 @@ export function useRadar(place: SelectedPlace | null, demo: boolean) {
   });
 }
 
-export function useEmitters(place: SelectedPlace | null, demo: boolean) {
-  return useQuery({
-    queryKey: key('emitters', place, demo),
-    queryFn: () => api.emitters(place!.coordinates, demo),
-    enabled: !!place,
-    staleTime: 60 * 60_000,
-  });
-}
-
 export function useProviders() {
   return useQuery({ queryKey: ['providers'], queryFn: api.providers, staleTime: Infinity });
 }

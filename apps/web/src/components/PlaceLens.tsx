@@ -18,7 +18,6 @@ import {
   usePollen,
   useUv,
   useRadar,
-  useEmitters,
 } from '../queries.js';
 import {
   DataModeChip,
@@ -623,68 +622,6 @@ function RadiationModule() {
   );
 }
 
-/** Reported annual load, formatted honestly in kg (t above 10 t). */
-function formatLoad(kg: number): string {
-  if (kg >= 10_000) return `${(kg / 1000).toLocaleString('de-DE', { maximumFractionDigits: 1 })} t`;
-  return `${kg.toLocaleString('de-DE', { maximumFractionDigits: 1 })} kg`;
-}
-
-function EmittersModule() {
-  const { selectedPlace, demoMode } = useAppStore();
-  const q = useEmitters(selectedPlace, demoMode);
-  const data = q.data?.data;
-
-  return (
-    <div className="card">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <strong>Gemeldete Freisetzungen (PRTR)</strong>
-        {q.data ? <StatusPill status={q.data.status} /> : null}
-      </div>
-      {q.isLoading ? <LoadingNote /> : null}
-      {q.data && (!data || data.facilities.length === 0) ? (
-        <ModuleStatusNote status={q.data.status} detail={q.data.statusDetail} />
-      ) : null}
-      {data && data.facilities.length > 0 ? (
-        <div style={{ marginTop: 8 }}>
-          {data.facilities.map((f) => (
-            <div key={f.facilityId} style={{ marginBottom: 8 }}>
-              <div style={{ fontSize: 12 }}>
-                <strong>{f.name}</strong>{' '}
-                <span style={{ color: 'var(--text-faint)', fontSize: 11 }}>
-                  · {formatDistanceGerman(f.distanceMeters)}
-                  {f.activity ? ` · ${f.activity}` : ''}
-                </span>
-              </div>
-              {f.releases.map((r, i) => (
-                <ValueRow key={i} label={r.pollutant} na={r.amountKg === null}>
-                  {r.amountKg === null ? 'n/v' : `${formatLoad(r.amountKg)}/Jahr`}{' '}
-                  <span style={{ color: 'var(--text-faint)', fontSize: 11 }}>
-                    ({r.medium}, {r.year})
-                  </span>{' '}
-                  <DataModeChip mode={r.mode} />
-                </ValueRow>
-              ))}
-            </div>
-          ))}
-          <p className="loading-shimmer" style={{ marginBottom: 0 }}>
-            Jahresmeldungen berichtspflichtiger Betriebe — keine Messung, keine Konzentration am
-            gewählten Ort; Betriebe unterhalb der Schwellenwerte fehlen.
-          </p>
-        </div>
-      ) : null}
-      {q.data ? (
-        <div style={{ marginTop: 8 }}>
-          <InspectButton
-            title="Gemeldete Freisetzungen (Thru.de/PRTR)"
-            evidence={q.data.evidence}
-            limitations={q.data.limitations}
-          />
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
 export function PlaceLens() {
   const selectedPlace = useAppStore((s) => s.selectedPlace);
 
@@ -715,7 +652,6 @@ export function PlaceLens() {
           <UvModule />
           <WaterModule />
           <RadiationModule />
-          <EmittersModule />
           <TransitModule />
         </>
       )}

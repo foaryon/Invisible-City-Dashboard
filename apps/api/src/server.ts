@@ -39,7 +39,6 @@ import {
   getPollenContext,
   getUvContext,
   getRadarContext,
-  getEmitterContext,
   demoAdapters,
 } from '@invisible-city/providers';
 
@@ -242,14 +241,6 @@ export async function buildServer(opts: ServerOptions = {}): Promise<FastifyInst
     const coords = parseCoords(parsed.data);
     if (wantsDemo(parsed.data)) return demoAdapters.radar(coords);
     return getRadarContext(coords, ctx);
-  });
-
-  app.get('/api/emitters', async (req, reply) => {
-    const parsed = CoordsQuery.safeParse(req.query);
-    if (!parsed.success) return reply.code(400).send({ error: 'Ungültige Koordinaten.' });
-    const coords = parseCoords(parsed.data);
-    if (wantsDemo(parsed.data)) return demoAdapters.emitters(coords);
-    return getEmitterContext(coords, ctx);
   });
 
   // Production single-deployable: serve the built SPA and fall back to

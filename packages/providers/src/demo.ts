@@ -12,14 +12,8 @@ import {
   type ModuleEnvelope,
   type Coordinates,
   type AirModelContext,
-  type EmitterContext,
 } from '@invisible-city/contracts';
-import {
-  DEMO_BANNER_TEXT,
-  makeEvidence,
-  distanceMeters,
-  formatDistanceGerman,
-} from '@invisible-city/evidence';
+import { DEMO_BANNER_TEXT, makeEvidence, distanceMeters } from '@invisible-city/evidence';
 import { getProvider } from './manifest.js';
 import {
   brightskyWeatherFixture,
@@ -129,69 +123,6 @@ export const demoAdapters = {
   },
   async radar(coords: Coordinates) {
     return stampDemo(await getRadarContext(coords, demoContext()));
-  },
-  /**
-   * PRTR has no keyless live path (a downloaded Thru.de export is required),
-   * so its demo payload is constructed directly, stamped demo end-to-end,
-   * mirroring the real 'reported' semantics (annual declarations, thresholds).
-   */
-  emitters(coords: Coordinates): ModuleEnvelope<EmitterContext> {
-    const provider = getProvider('thru-prtr');
-    const retrievedAt = new Date().toISOString();
-    const facilityCoords = {
-      latitude: coords.latitude + 0.012,
-      longitude: coords.longitude + 0.018,
-    };
-    const distance = Math.round(distanceMeters(coords, facilityCoords));
-    const data: EmitterContext = {
-      facilities: [
-        {
-          facilityId: 'demo-prtr-1',
-          name: 'Heizkraftwerk Demo-Mitte',
-          activity: 'Verbrennung von Brennstoffen',
-          coordinates: facilityCoords,
-          distanceMeters: distance,
-          releases: [
-            {
-              pollutant: 'CO2 (Kohlendioxid)',
-              amountKg: 1_250_000_000,
-              medium: 'Luft',
-              year: 2023,
-              mode: 'reported',
-            },
-            {
-              pollutant: 'NOx (Stickoxide)',
-              amountKg: 210_000,
-              medium: 'Luft',
-              year: 2023,
-              mode: 'reported',
-            },
-          ],
-        },
-      ],
-      searchRadiusMeters: 10_000,
-      reportingYears: [2023],
-    };
-    return stampDemo({
-      status: 'ok',
-      demo: false,
-      data,
-      evidence: [
-        makeEvidence(provider, {
-          mode: 'reported',
-          method:
-            'Jahresmeldungen berichtspflichtiger Betriebe (Thru.de/PRTR-Datenexport), Umkreisabfrage über gemeldete Betriebskoordinaten. Gemeldete Jahresfrachten — keine Messung, keine Konzentration am gewählten Ort.',
-          spatial: {
-            kind: 'coverage',
-            description: `Berichtspflichtige Betriebe im Umkreis von 10 km; nächster Betrieb ${formatDistanceGerman(distance)} entfernt`,
-          },
-          completeness: 'partial',
-          retrievedAt,
-        }),
-      ],
-      limitations: provider.knownLimitations,
-      retrievedAt,
-    });
   },
   /**
    * CAMS has no keyless live path, so its demo payload is constructed directly

@@ -2,6 +2,21 @@
 
 Records notable decisions and **pinned dependency versions**. Newest first.
 
+## 2026-07-17 — Thru.de/PRTR removed: no manual-download dependencies
+
+- **Decision:** every live module must be fully automatic — a provider whose only data
+  path requires a manual download has no place in the dashboard. Thru.de/PRTR (the
+  facility-level reported-releases module, incl. greenhouse gases) was fully implemented
+  in V1.1 but depends on a manually generated CSV export: Thru.de publishes no documented
+  stable bulk endpoint or query API, and scraping its interactive export UI is forbidden
+  by the reality policy. The provider, its `reported` data mode, API route, UI module and
+  tests were therefore removed (retrievable from git history via PRs #4–#5 should Thru.de
+  ever publish a documented automatic interface).
+- **Consequence for greenhouse gases:** none are shown. Aggregated national/Länder GHG
+  inventories stay out for spatial-honesty reasons (annual, coarse, 1–2 y lag — no honest
+  relation to a map pin), and the only credible place-based source fails the automation
+  rule. Honest absence beats a module that silently starves without manual care.
+
 ## 2026-07-17 — V1.1 provider expansion (water, radiation, pollen, UV, radar, PRTR)
 
 - **Decision:** six new providers, all following the existing adapter → Evidence → envelope
