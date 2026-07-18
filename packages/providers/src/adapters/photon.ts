@@ -27,13 +27,24 @@ function prop(props: Record<string, unknown>, key: string): string | undefined {
   return typeof v === 'string' && v.length > 0 ? v : undefined;
 }
 
+/**
+ * City-states: Photon omits `state` for Berlin/Hamburg/Bremen (Stadtstaaten,
+ * live-verified 2026-07-18) — the Land IS the city there. Without this the
+ * pollen module cannot resolve its Bundesland-based partregion.
+ */
+const CITY_STATES = new Set(['Berlin', 'Hamburg', 'Bremen']);
+
 function toPlace(f: z.infer<typeof PhotonFeature>): SelectedPlace | null {
   const props = f.properties;
   if (prop(props, 'countrycode') !== 'DE') return null; // product scope: Germany
   const [lon, lat] = f.geometry.coordinates;
   const name = prop(props, 'name');
   const city = prop(props, 'city');
-  const state = prop(props, 'state');
+  let state = prop(props, 'state');
+  if (!state) {
+    if (city && CITY_STATES.has(city)) state = city;
+    else if (name && CITY_STATES.has(name)) state = name;
+  }
   const labelParts = [name, city && city !== name ? city : undefined, state].filter(Boolean);
   if (labelParts.length === 0) return null;
   const osmId = prop(props, 'osm_id') ?? String(props['osm_id'] ?? `${lat},${lon}`);

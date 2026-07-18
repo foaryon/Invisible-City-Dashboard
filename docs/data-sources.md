@@ -55,8 +55,16 @@ documentation, license, attribution and technical terms before activation.
   - response property names (`EVENT`/`SEVERITY`/`ONSET`/`EXPIRES`/`EC_LICENSE`).
 
 ### UBA / Länder — observed air quality (`uba-airdata`)
-- **Endpoint:** `https://luftdaten.umweltbundesamt.de/api/air_data/v3` (JSON, no API key).
-  Components include PM10, PM2.5, NO2, O3, SO2, CO. >400 stations.
+- **Endpoint:** `https://www.umweltbundesamt.de/api/air_data/v3` (JSON, no API key).
+  Components include PM10, PM2.5, NO2, O3, SO2, CO. >400 active stations.
+  **Live-verified 2026-07-18:** the former `luftdaten.umweltbundesamt.de` host returns
+  HTTP 404 — `www.umweltbundesamt.de` is the working documented base.
+- **Station directory semantics (live-verified):** `stations/json` row indices [5]/[6]
+  carry the activity period; ~1,200 of ~2,400 entries are DECOMMISSIONED stations (e.g.
+  1990-closed "zDDR_…" stations nearest to Berlin-Mitte). The adapter skips stations whose
+  activity ended and prefers stations that actually RETURN measurements (each shown with
+  its real distance — selection, never interpolation); some legacy entries carry no end
+  date yet report nothing (source data quality).
 - **License:** **Datenlizenz Deutschland Namensnennung 2.0** (dl-de/by-2-0).
 - **Attribution:** `Umweltbundesamt` (+ "Daten verändert" if modified).
 - **Data status:** current-year data are **provisional** ("nicht endgültig geprüft"); final
@@ -66,11 +74,10 @@ documentation, license, attribution and technical terms before activation.
   to Europe/Berlin via `ubaCetToIso` and **preserves the original string** in
   `sourceTimeRaw`.
 - **Cache TTL:** 900 s.
-- **TO VERIFY:**
-  - positional indices of `stations/json` and `measures/json` arrays against the API's
-    `indices` metadata;
-  - component IDs (PM10=1, CO=2, O3=3, SO2=4, NO2=5, PM2.5=9) and scope semantics;
-  - API version label (**v3 vs v4**) against current docs.
+- **Live-verified 2026-07-18:** positional indices of `stations/json` (code=1, name=2,
+  activity=5/6, lon=7, lat=8, type=13) and the `measures/json` row layout parse against
+  the live service; measurements retrieved for Trier, Berlin, Hamburg, Köln, München.
+- **TO VERIFY:** API version label (**v3 vs v4**) against current docs.
 
 ### OpenStreetMap — POI/geometry via Overpass (`osm-overpass`)
 - **Endpoint:** `https://overpass-api.de/api/interpreter` (public instance). Fair use: **one
@@ -95,6 +102,9 @@ documentation, license, attribution and technical terms before activation.
   extensive use is throttled. Results filtered to Germany (`countrycode DE`).
 - **License:** code Apache-2.0; data ODbL. Attribution `© OpenStreetMap contributors`.
 - **Cache TTL:** 86400 s.
+- **City-states (live-verified 2026-07-18):** Photon omits the `state` property for
+  Berlin/Hamburg/Bremen — the adapter derives it from the city name (the Land IS the
+  city), which the pollen module's Bundesland assignment requires.
 - **TO VERIFY:** for production, self-host Photon and switch the endpoint.
 - **Nominatim note:** the OSMF Nominatim Usage Policy forbids no-code/low-code/vibe-coding
   platforms from building the public API in as a generic geocoder, forbids client-side
@@ -181,11 +191,16 @@ documentation, license, attribution and technical terms before activation.
 - **TO VERIFY:** dashboard payload schema; district-ARS convention.
 
 ### BKG — official territorial assignment, VG250 (`bkg-vg250`)
-- **Endpoint:** `https://sgx.geodatenzentrum.de/wfs_vg250` (WFS GetFeature, layer
-  `vg250_gem`, point INTERSECTS, GeoJSON). Yields the official Gemeinde + ARS for a point.
+- **Endpoint:** `https://sgx.geodatenzentrum.de/wfs_vg250` (WFS 2.0 GetFeature, layer
+  `vg250_gem`, GeoJSON). Yields the official Gemeinde + ARS for a point.
+- **Query mechanics (live-verified 2026-07-18):** the service runs **deegree**, which does
+  NOT support GeoServer's `cql_filter` vendor parameter (the original INTERSECTS approach
+  silently returned no feature — "ARS konnte nicht bestimmt werden"). The adapter now uses
+  a standard WFS 2.0 `bbox` KVP query (small box around the point) plus a LOCAL
+  point-in-polygon test on the returned geometries (axis order normalized defensively).
+  Verified live: Trier → ARS `072110000000`, Berlin → `110000000000`; property names
+  `ars`/`gen` confirmed. `typeNames` is overridable via `BKG_WFS_TYPENAME`.
 - **License/attribution:** dl-de/by-2-0; `© GeoBasis-DE / BKG (2026)`.
-- **TO VERIFY:** geometry column name for INTERSECTS (documented `geom`); property names
-  (`ars`, `gen`, `bez`).
 
 ### Autobahn GmbH — motorway events (`autobahn-gmbh`)
 - **Endpoint:** `https://verkehr.autobahn.de/o/autobahn` (bund.dev-documented;
@@ -196,7 +211,11 @@ documentation, license, attribution and technical terms before activation.
 - **Semantics:** federal motorways ONLY — absence of events is never a statement about
   other roads or free flow.
 - **License/attribution:** dl-de/by-2-0 (**TO VERIFY**); `Quelle: Autobahn GmbH des Bundes`.
-- **TO VERIFY:** response schema (`coordinate`/`title`/`subtitle`); license wording.
+- **Live-verified 2026-07-18:** the response schema matches — with ONE deviation from the
+  bund.dev docs: `coordinate.lat`/`coordinate.long` are **numbers**, not strings (the
+  string-only schema silently dropped every event). The adapter accepts both. A1 roadworks
+  alone: 226 entries; Köln resolves 8 events within 30 km.
+- **TO VERIFY:** license wording.
 
 ### GFZ — earthquakes via GEOFON (`gfz-geofon`)
 - **Endpoint:** `https://geofon.gfz-potsdam.de/fdsnws/event/1/query` (FDSN standard,
@@ -212,11 +231,16 @@ documentation, license, attribution and technical terms before activation.
   (documented semicolon tables: per-parameter station list + values; latin1-decoded;
   cached 30 days). Temperature + precipitation; current-month and annual normals of the
   nearest climate station.
+- **Filename discovery (live-verified 2026-07-18):** hardcoded filenames drift across CDC
+  revisions (the guessed names returned HTTP 404). The adapter reads the directory
+  autoindex first and resolves the actual station-list/value-table names per parameter by
+  pattern — unresolvable files stay an honest source-error, never a guessed URL.
 - **Semantics:** a STATISTICAL REFERENCE for context ("is today unusual?") — never a
   current condition or forecast; the normals station may differ from the weather-module
   station (combine, never fuse — stated in the Evidence).
 - **License/attribution:** CC BY 4.0; `Quelle: Deutscher Wetterdienst`.
-- **TO VERIFY:** file names and column layout of the mean_91-20 tables.
+- **Live-verified 2026-07-18:** directory-index discovery + column layout parse against
+  the live service (values for all seven test locations).
 
 ---
 
@@ -351,24 +375,27 @@ Thru.de publish a documented automatic interface.
 These are documented facts to confirm against the live services — **not** missing code. All
 adapters are implemented; runtime Zod validation makes any schema mismatch fail visibly.
 
-1. **Bright Sky** `/weather` response schema (live).
-2. **DWD WFS** geometry column (`THE_GEOM`) + warning property names (live).
-3. **UBA** array positional indices, component IDs, scope semantics, API version (v3 vs v4).
-4. **Photon** — self-host for production; swap `PHOTON_URL`.
-5. **CAMS** — ADS process-API request/response + NetCDF variable names against a real key.
-6. **DELFI GTFS** — registration, license, feed validity, stop-matching against a real feed.
-7. **GTFS-RT** — operator/area coverage documentation before any `confirmed` realtime.
-8. **BKG VG250** boundaries — WFS integration + attribution (future enrichment).
-9. **PEGELONLINE** — `stations.json` response schema + dl-de/zero-2-0 license wording (live).
-10. **BfS ODL** — WFS property names + unit semantics (live).
-11. **DWD pollen** — `s31fg.json` schema; optional polygon-based partregion assignment.
-12. **DWD UV** — `uvi.json` schema; reconcile location names with the coordinate table.
-13. **DWD radar** — Bright Sky `/radar` unit scaling + parameters; WMS overlay layer name.
-14. **NINA** — dashboard payload schema; district-ARS convention.
-15. **BKG VG250** — geometry column for INTERSECTS; property names (`ars`, `gen`, `bez`).
-16. **Autobahn** — per-road response schema; license wording.
-17. **GEOFON** — FDSN text column order; 204 semantics; license wording.
-18. **DWD CDC normals** — mean_91-20 file names + column layout.
-19. **Tankerkönig** — `list.php` schema against a real key.
-20. **DB FaSta** — schema against real credentials.
-21. **BVL Lebensmittelwarnung** — endpoint/auth semantics before any adapter is built.
+**Live-verified 2026-07-18** via `npm run diagnose` (133 adapter calls across Trier,
+Berlin, München, Hamburg, Köln, Eifel, Sylt — report: `diagnostics-report.json`):
+Bright Sky `/weather` + `/radar` schemas · DWD WFS warnings · UBA endpoint host,
+positional indices, activity columns, measurements · Photon search/reverse (+city-state
+`state` gap) · PEGELONLINE `stations.json` · BfS ODL WFS properties · DWD pollen
+`s31fg.json` · DWD UV `uvi.json` · NINA dashboard payload + district-ARS convention ·
+BKG VG250 (deegree bbox + local point-in-polygon; `ars`/`gen`) · Autobahn per-road schema
+(numeric coordinates!) · GEOFON text format + 204 semantics · CDC normals via
+directory-index discovery.
+
+Still open:
+
+1. **UBA** — API version label (v3 vs v4) against current docs.
+2. **Photon** — self-host for production; swap `PHOTON_URL`.
+3. **CAMS** — ADS process-API request/response + NetCDF variable names against a real key.
+4. **DELFI GTFS** — registration, license, feed validity, stop-matching against a real feed.
+5. **GTFS-RT** — operator/area coverage documentation before any `confirmed` realtime.
+6. **BKG VG250** boundaries — WFS integration + attribution (future enrichment).
+7. **Licenses** — PEGELONLINE dl-de/zero-2-0, Autobahn dl-de/by-2-0, GEOFON CC BY 4.0
+   wording against the current terms pages.
+8. **DWD pollen** — optional polygon-based partregion assignment.
+9. **Tankerkönig** — `list.php` schema against a real key.
+10. **DB FaSta** — schema against real credentials.
+11. **BVL Lebensmittelwarnung** — endpoint/auth semantics before any adapter is built.

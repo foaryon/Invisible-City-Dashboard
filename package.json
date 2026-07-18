@@ -22,6 +22,7 @@
     "start:bundle": "node apps/api/dist/server.mjs",
     "build:standalone": "node scripts/build-standalone.mjs",
     "icons": "node scripts/gen-icons.mjs",
+    "diagnose": "tsx scripts/diagnose.mjs",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

@@ -14,9 +14,9 @@ coverage · blocked source issues · next smallest shippable slice.
 
 ## Blocked source issues
 
-- Live schema re-verification for Bright Sky, DWD WFS and UBA is blocked by the build
-  environment's egress policy → tracked as **TO VERIFY** in `data-sources.md`. Runtime Zod
-  validation makes any mismatch fail visibly, not silently.
+- ~~Live schema re-verification blocked by the build environment's egress policy~~ —
+  **resolved 2026-07-18**: `npm run diagnose` (see Stage 8) runs the live sweep on any
+  networked machine; the consolidated verification state lives in `data-sources.md`.
 
 ---
 
@@ -92,6 +92,31 @@ coverage · blocked source issues · next smallest shippable slice.
   attribution + docs + privacy + release report, vendor chunk splitting.
 - **Gap/next:** optional CAMS + DELFI activation; self-hosted Photon; dedicated map cluster
   layer; independent review.
+
+## Stage 8 — Live verification & endpoint fixes ✅ (2026-07-18)
+- **Implemented:** `scripts/diagnose.mjs` (`npm run diagnose`, `--watch` for extended
+  observation) — calls every real adapter with real fetch across 7 representative
+  locations, records `{status, httpCode, parseOk, itemCount, ms}` per call, prints tables
+  and writes `diagnostics-report.json`. Test plan: `docs/live-testplan.md`.
+- **Fixed (live-confirmed through adapter AND API):**
+  - UBA base host (`luftdaten.…` → 404; now `www.umweltbundesamt.de`), plus
+    decommissioned-station filtering ([5]/[6] activity columns) and preference for
+    stations that actually measure — Berlin/Hamburg/Köln now deliver values.
+  - BKG VG250: deegree supports no `cql_filter` → WFS 2.0 bbox + local point-in-polygon;
+    NINA now resolves the district (Trier `072110000000`, Berlin `110000000000`).
+  - CDC normals: filename drift (404) → directory-index discovery.
+  - Autobahn: live coordinates are numbers, not strings → schema accepted both ways
+    (before: silently 0 events everywhere; now e.g. Köln 8, Trier 8).
+  - Photon: city-states carry no `state` → derived (pollen for Berlin/Hamburg works).
+  - Map-click reverse-geocode race: a stale response could snap the map back to an
+    earlier point ("pointer jump") → guarded selection flow (`apps/web/src/selection.ts`),
+    4 regression tests; demo-mode stale-closure in the click handler fixed alongside.
+  - Startup prewarm of the national Autobahn snapshot (~3 s cold cost moved off the first
+    user selection; caching strategy only).
+- **Tested:** 146 provider tests + 28 web tests green; live: 133 diagnose calls, C-phase
+  API battery (400s, demo gating, readiness, edge coords, cache).
+- **Gap/next:** Overpass public instance throttles bursts (429) and can 504 on dense
+  areas — honest source-error today; consider self-hosting for sustained use.
 
 ## Next smallest shippable slice
 

@@ -55,7 +55,18 @@ export interface ServerOptions {
   logger?: boolean;
   /** When set to a built web directory, the API also serves the SPA (single deployable). */
   webRoot?: string;
+  /**
+   * Fire-and-forget cache prewarm on startup (production entry only, never in
+   * tests): the Autobahn adapter aggregates ALL motorways into one nationally
+   * shared snapshot (~400 upstream requests, ~3 s). Warming it at boot moves
+   * that cost off the user's first place selection. Same data, same source
+   * policy — a caching strategy, not a data change.
+   */
+  prewarm?: boolean;
 }
+
+/** Central point (near Kassel) — any German point warms the national snapshot. */
+const PREWARM_COORDS: Coordinates = { latitude: 51.31, longitude: 9.49 };
 
 const CoordsQuery = z.object({
   lat: z.coerce.number().min(-90).max(90),
@@ -82,6 +93,12 @@ export async function buildServer(opts: ServerOptions = {}): Promise<FastifyInst
   /** Demo only when explicitly enabled AND requested — never in production. */
   const wantsDemo = (q: { demo?: string | undefined }) =>
     config.enableDemo && (q.demo === '1' || q.demo === 'true');
+
+  if (opts.prewarm) {
+    // Non-blocking; module honesty is unaffected — a failed prewarm simply
+    // means the first user selection pays the cold cost as before.
+    void getAutobahnContext(PREWARM_COORDS, ctx).catch(() => undefined);
+  }
 
   app.addHook('onClose', async () => cache.close());
 

@@ -13,6 +13,9 @@ test-results/
 .env.*
 !.env.example
 var/
+diagnostics-report.json
+diagnostics-report.jsonl
 *.sqlite
 *.sqlite-journal
 .DS_Store
+.claude/

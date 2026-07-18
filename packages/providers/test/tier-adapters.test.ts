@@ -157,12 +157,25 @@ describe('GEOFON earthquakes adapter (FDSN text)', () => {
 });
 
 describe('DWD CDC climate normals adapter', () => {
+  // The adapter first reads the directory autoindex to discover current
+  // filenames; this stub lists them (matched by the file routes below). The
+  // 'mean_91-20' route is placed LAST so only the index URL (no filename)
+  // falls through to it.
+  const CDC_INDEX_HTML = `<html><body>
+    <a href="../">Parent</a>
+    <a href="Temperatur_1991-2020_Stationsliste_aktStandort.txt">t-stations</a>
+    <a href="Temperatur_1991-2020_aktStandort.txt">t-values</a>
+    <a href="Niederschlag_1991-2020_Stationsliste_aktStandort.txt">n-stations</a>
+    <a href="Niederschlag_1991-2020_aktStandort.txt">n-values</a>
+  </body></html>`;
+
   it('resolves the nearest climate station and reports current-month + annual normals', async () => {
     const ctx = ctxRouting([
       ['Temperatur_1991-2020_Stationsliste', { __text: cdcTemperatureStationsFixture }],
       ['Temperatur_1991-2020', { __text: cdcTemperatureValuesFixture }],
       ['Niederschlag_1991-2020_Stationsliste', { __text: cdcPrecipitationStationsFixture }],
       ['Niederschlag_1991-2020', { __text: cdcPrecipitationValuesFixture }],
+      ['mean_91-20', { __text: CDC_INDEX_HTML }],
     ]);
     const env = await getClimateNormalsContext(coords, ctx);
     expect(env.status).toBe('ok');
@@ -181,6 +194,7 @@ describe('DWD CDC climate normals adapter', () => {
       ['Temperatur_1991-2020', { __text: malformedFixtures.cdcTable }],
       ['Niederschlag_1991-2020_Stationsliste', { __text: malformedFixtures.cdcTable }],
       ['Niederschlag_1991-2020', { __text: malformedFixtures.cdcTable }],
+      ['mean_91-20', { __text: CDC_INDEX_HTML }],
     ]);
     const env = await getClimateNormalsContext(coords, ctx);
     expect(env.status).toBe('source-error');

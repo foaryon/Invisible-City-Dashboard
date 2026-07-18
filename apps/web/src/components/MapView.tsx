@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import maplibregl, { type Map as MlMap, type LngLatLike } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { type SelectedPlace } from '@invisible-city/contracts';
+import { selectFromMapClick } from '../selection.js';
 import {
   BASE_MAP_STYLE_URL,
   BASE_MAP_ATTRIBUTION,
@@ -86,8 +86,12 @@ export function MapView() {
   const selectedMarker = useRef<maplibregl.Marker | null>(null);
   const readyRef = useRef(false);
 
-  const { selectedPlace, pins, activeLayer, demoMode, radarOverlay, selectPlace } = useAppStore();
+  const { selectedPlace, pins, activeLayer, demoMode, radarOverlay } = useAppStore();
   const radarOverlayRef = useRef(radarOverlay);
+  // The click handler lives in the init-once effect — it must read the CURRENT
+  // demo state via a ref, not the stale closure value from mount time.
+  const demoModeRef = useRef(demoMode);
+  demoModeRef.current = demoMode;
   const air = useAirStations(selectedPlace, demoMode);
   const airModel = useAirModel(selectedPlace, demoMode);
   const pois = usePois(selectedPlace, demoMode);
@@ -111,31 +115,18 @@ export function MapView() {
       readyRef.current = true;
     });
     map.on('click', (e) => {
-      void (async () => {
-        const coords = { latitude: e.lngLat.lat, longitude: e.lngLat.lng };
-        // Temporary analysis point immediately; reverse-geocode label if available.
-        const provisional: SelectedPlace = {
-          id: `point:${coords.latitude.toFixed(5)},${coords.longitude.toFixed(5)}`,
-          label: `Punkt ${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)}`,
-          coordinates: coords,
-          country: 'DE',
-        };
-        selectPlace(provisional);
-        try {
-          const env = await api.reverse(coords, demoMode);
-          const place = env.data?.[0]?.place;
-          if (place) selectPlace({ ...place, coordinates: coords });
-        } catch {
-          // Keep provisional label; reverse geocoding is best-effort.
-        }
-      })();
+      // Provisional point immediately; label upgrade is guarded against stale
+      // reverse-geocode responses (see selection.ts — the "pointer jump" fix).
+      void selectFromMapClick({ latitude: e.lngLat.lat, longitude: e.lngLat.lng }, (c) =>
+        api.reverse(c, demoModeRef.current),
+      );
     });
     mapRef.current = map;
     return () => {
       map.remove();
       mapRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   // DWD radar WMS overlay (toggle). Reads the latest toggle state via a ref so

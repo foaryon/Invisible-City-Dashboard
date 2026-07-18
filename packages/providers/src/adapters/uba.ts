@@ -59,6 +59,16 @@ interface StationRow {
 function parseStationRow(id: string, row: unknown[]): StationRow | null {
   const code = row[1];
   const name = row[2];
+  // Live-verified 2026-07-18: [5] = activity start, [6] = activity end (null/""
+  // while the station is still measuring). The directory keeps ~1,200
+  // DECOMMISSIONED stations (e.g. "zDDR_B Alex_MD", closed 1990) — without this
+  // filter dense areas like Berlin-Mitte resolve to dead stations and the
+  // module reports "keine Messwerte" although active stations exist nearby.
+  const activityEnd = row[6];
+  if (typeof activityEnd === 'string' && /^\d{4}-\d{2}-\d{2}/.test(activityEnd)) {
+    const end = new Date(activityEnd).getTime();
+    if (Number.isFinite(end) && end < Date.now()) return null; // decommissioned
+  }
   const lon = Number(row[7]);
   const lat = Number(row[8]);
   const stationType = row[13];
@@ -152,10 +162,15 @@ export async function getAirStationContext(
       };
     }
 
+    // Consider a wider candidate pool than the reported set: some directory
+    // entries carry no activity-end date although the station no longer
+    // reports (source data quality, e.g. "zDDR_…" legacy stations in Berlin).
+    // Stations that RETURN measurements are preferred; every shown station
+    // still carries its own real distance — selection, not interpolation.
     const nearest = stations
       .map((s) => ({ ...s, distance: distanceMeters(coords, s.coordinates) }))
       .sort((a, b) => a.distance - b.distance)
-      .slice(0, maxStations);
+      .slice(0, maxStations * 2);
 
     if (nearest.length === 0) {
       return {
@@ -174,11 +189,13 @@ export async function getAirStationContext(
     const from = new Date(now.getTime() - 24 * 3600 * 1000);
     const fmtDate = (d: Date) => d.toISOString().slice(0, 10);
 
-    const outStations: AirStation[] = [];
-    let anyMeasurement = false;
+    const measuring: AirStation[] = [];
+    const silent: AirStation[] = [];
     let anyStale = stationsResult.stale;
 
     for (const station of nearest) {
+      // Enough measuring stations found — stop probing further candidates.
+      if (measuring.length >= maxStations) break;
       // Fetch all pollutants of one station in PARALLEL (the UBA API has no
       // single-flight policy); stations stay sequential to keep concurrency
       // bounded at COMPONENTS.length. Cold-cache latency drops from the sum of
@@ -215,12 +232,9 @@ export async function getAirStationContext(
       const measurements: AirMeasurement[] = [];
       for (const r of results) {
         anyStale = anyStale || r.stale;
-        if (r.measurement) {
-          measurements.push(r.measurement);
-          anyMeasurement = true;
-        }
+        if (r.measurement) measurements.push(r.measurement);
       }
-      outStations.push({
+      const out: AirStation = {
         stationId: station.stationId,
         stationCode: station.code,
         name: station.name,
@@ -228,8 +242,16 @@ export async function getAirStationContext(
         stationType: station.stationType,
         distanceMeters: Math.round(station.distance),
         measurements,
-      });
+      };
+      (measurements.length > 0 ? measuring : silent).push(out);
     }
+
+    // Report measuring stations (each with its real distance). Directory
+    // entries that return nothing (dormant/legacy) are only shown when NO
+    // station in the pool measures — then the honest result is "no values".
+    const outStations =
+      measuring.length > 0 ? measuring.slice(0, maxStations) : silent.slice(0, maxStations);
+    const anyMeasurement = measuring.length > 0;
 
     const nearestStation = outStations[0];
     const role = nearestStation ? stationSpatialRole(nearestStation.distanceMeters) : 'regional';

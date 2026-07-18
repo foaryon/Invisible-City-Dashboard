@@ -8,7 +8,7 @@ describe('loadConfig', () => {
     const c = loadConfig(empty);
     expect(c.brightskyUrl).toBe('https://api.brightsky.dev');
     expect(c.dwdWfsUrl).toContain('maps.dwd.de');
-    expect(c.ubaBaseUrl).toContain('luftdaten.umweltbundesamt.de');
+    expect(c.ubaBaseUrl).toContain('www.umweltbundesamt.de');
     expect(c.overpassUrl).toContain('overpass-api.de');
     expect(c.photonUrl).toContain('photon.komoot.io');
     expect(c.enableDemo).toBe(false);

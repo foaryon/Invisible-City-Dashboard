@@ -25,6 +25,12 @@ export interface ProviderConfig {
   ninaUrl: string;
   /** BKG VG250 WFS (official territorial assignment, ARS). */
   bkgWfsUrl: string;
+  /**
+   * BKG VG250 feature type (Gemeinde layer) queried for the point assignment.
+   * Overridable because the published typeName has varied across VG250 WFS
+   * revisions (e.g. `vg250_gem`, `vg250:vg250_gem`). TO VERIFY live.
+   */
+  bkgWfsTypeName: string;
   /** Autobahn GmbH traffic API base (bund.dev-documented). */
   autobahnUrl: string;
   /** GFZ GEOFON FDSN event web service base. */
@@ -74,7 +80,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ProviderConfig
   const config: ProviderConfig = {
     brightskyUrl: str(env, 'BRIGHTSKY_URL', 'https://api.brightsky.dev'),
     dwdWfsUrl: str(env, 'DWD_WFS_URL', 'https://maps.dwd.de/geoserver/dwd/ows'),
-    ubaBaseUrl: str(env, 'UBA_BASE_URL', 'https://luftdaten.umweltbundesamt.de/api/air_data/v3'),
+    ubaBaseUrl: str(env, 'UBA_BASE_URL', 'https://www.umweltbundesamt.de/api/air_data/v3'),
     overpassUrl: str(env, 'OVERPASS_URL', 'https://overpass-api.de/api/interpreter'),
     photonUrl: str(env, 'PHOTON_URL', 'https://photon.komoot.io'),
     pegelonlineUrl: str(
@@ -91,6 +97,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ProviderConfig
     camsApiUrl: str(env, 'CAMS_ADS_URL', 'https://ads.atmosphere.copernicus.eu/api'),
     ninaUrl: str(env, 'NINA_URL', 'https://warnung.bund.de/api31'),
     bkgWfsUrl: str(env, 'BKG_WFS_URL', 'https://sgx.geodatenzentrum.de/wfs_vg250'),
+    bkgWfsTypeName: str(env, 'BKG_WFS_TYPENAME', 'vg250_gem'),
     autobahnUrl: str(env, 'AUTOBAHN_URL', 'https://verkehr.autobahn.de/o/autobahn'),
     geofonUrl: str(env, 'GEOFON_URL', 'https://geofon.gfz-potsdam.de/fdsnws/event/1'),
     dwdCdcNormalsUrl: str(

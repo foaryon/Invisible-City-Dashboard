@@ -36,7 +36,7 @@ const webRoot =
   webRootCandidates.map((p) => resolve(p)).find((p) => existsSync(resolve(p, 'index.html'))) ??
   resolve(here, '../../web/dist');
 
-const app = await buildServer({ cachePath, webRoot, logger: true });
+const app = await buildServer({ cachePath, webRoot, logger: true, prewarm: true });
 app
   .listen({ port, host })
   .then(() => {

@@ -32,7 +32,11 @@ const Item = z.object({
   identifier: z.string(),
   title: z.string().optional(),
   subtitle: z.string().optional(),
-  coordinate: z.object({ lat: z.string(), long: z.string() }).optional(),
+  // Live-verified 2026-07-18: the API returns lat/long as NUMBERS (the bund.dev
+  // docs showed strings). Accept both — Number() normalizes downstream.
+  coordinate: z
+    .object({ lat: z.union([z.string(), z.number()]), long: z.union([z.string(), z.number()]) })
+    .optional(),
   startTimestamp: z.string().optional(),
 });
 

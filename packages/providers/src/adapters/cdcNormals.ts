@@ -87,27 +87,85 @@ function toNumber(raw: string | undefined): number | null {
   return n;
 }
 
-interface ParameterFile {
+interface ParameterSpec {
   parameter: 'temperature' | 'precipitation';
-  stationsFile: string;
-  valuesFile: string;
   unit: string;
+  /** Matches the parameter in a CDC filename (German or English spelling). */
+  keyword: RegExp;
 }
 
-const FILES: ParameterFile[] = [
-  {
-    parameter: 'temperature',
-    stationsFile: 'Temperatur_1991-2020_Stationsliste_aktStandort.txt',
-    valuesFile: 'Temperatur_1991-2020_aktStandort.txt',
-    unit: '°C',
-  },
-  {
-    parameter: 'precipitation',
-    stationsFile: 'Niederschlag_1991-2020_Stationsliste_aktStandort.txt',
-    valuesFile: 'Niederschlag_1991-2020_aktStandort.txt',
-    unit: 'mm',
-  },
+const PARAMETERS: ParameterSpec[] = [
+  { parameter: 'temperature', unit: '°C', keyword: /(temperat|_tm_|_tmk_)/i },
+  { parameter: 'precipitation', unit: 'mm', keyword: /(niederschl|precip|_rr_|_rsk_)/i },
 ];
+
+interface ParameterFile extends ParameterSpec {
+  stationsFile: string;
+  valuesFile: string;
+}
+
+/** A file is a station list, not a value table, when its name says so. */
+const STATIONS_HINT = /(stationsliste|stationen|stations|_stat)/i;
+
+/** Extract plain file hrefs from an Apache autoindex listing. */
+export function parseDirectoryIndex(html: string): string[] {
+  const hrefs = new Set<string>();
+  const re = /href="([^"?][^"]*)"/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html)) !== null) {
+    const href = m[1]!;
+    // Skip parent links, sort links and subdirectories — we want files here.
+    if (href.startsWith('/') || href.startsWith('..') || href.endsWith('/')) continue;
+    // Decode and drop any leading path, keeping the bare filename.
+    const name = decodeURIComponent(href.split('/').pop() ?? href);
+    if (name.length > 0) hrefs.add(name);
+  }
+  return [...hrefs];
+}
+
+/**
+ * Resolve the station-list and value-table filenames for each parameter from a
+ * directory listing, instead of hardcoding names that drift across CDC
+ * revisions. Returns null when a required file cannot be found — the caller
+ * then reports an honest source-error rather than guessing a URL.
+ */
+export function resolveParameterFiles(fileNames: string[]): ParameterFile[] | null {
+  const txt = fileNames.filter((f) => /\.txt$/i.test(f));
+  const resolved: ParameterFile[] = [];
+  for (const spec of PARAMETERS) {
+    const forParam = txt.filter((f) => spec.keyword.test(f));
+    const stationsFile = forParam.find((f) => STATIONS_HINT.test(f));
+    const valuesFile = forParam.find((f) => !STATIONS_HINT.test(f));
+    if (!stationsFile || !valuesFile) return null;
+    resolved.push({ ...spec, stationsFile, valuesFile });
+  }
+  return resolved;
+}
+
+/** The directory listing changes rarely — cache it a full day. */
+const INDEX_TTL_SECONDS = 86_400;
+
+async function discoverFiles(
+  ctx: AdapterContext,
+  provider: ReturnType<typeof getEffectiveProvider>,
+): Promise<{ files: ParameterFile[] | null; stale: boolean; retrievedAt: string }> {
+  // A trailing slash makes the directory autoindex resolve without a redirect.
+  const base = ctx.config.dwdCdcNormalsUrl.replace(/\/+$/, '');
+  const indexResult = await fetchTextWithCache(
+    provider,
+    requestFingerprint({ resource: 'cdc-index' }),
+    `${base}/`,
+    ctx,
+    undefined,
+    INDEX_TTL_SECONDS,
+  );
+  const names = parseDirectoryIndex(indexResult.raw);
+  return {
+    files: resolveParameterFiles(names),
+    stale: indexResult.stale,
+    retrievedAt: indexResult.retrievedAt,
+  };
+}
 
 function parseStations(text: string): Array<z.infer<typeof StationRow>> | null {
   const rows = parseCdcTable(text);
@@ -154,7 +212,25 @@ export async function getClimateNormalsContext(
     let anyStale = false;
     let cacheAge = 0;
 
-    for (const file of FILES) {
+    // Resolve the current filenames from the CDC directory index rather than
+    // hardcoding names that drift across revisions.
+    const discovery = await discoverFiles(ctx, provider);
+    retrievedAt = discovery.retrievedAt;
+    anyStale = anyStale || discovery.stale;
+    if (!discovery.files) {
+      return {
+        status: 'source-error',
+        demo: false,
+        data: null,
+        evidence: [],
+        limitations: provider.knownLimitations,
+        statusDetail:
+          'Die CDC-Normalwert-Dateien konnten im Verzeichnis der Quelle nicht aufgelöst werden.',
+        retrievedAt,
+      };
+    }
+
+    for (const file of discovery.files) {
       const stationsResult = await fetchTextWithCache(
         provider,
         requestFingerprint({ resource: 'cdc-stations', p: file.parameter }),

@@ -185,6 +185,7 @@ and Android 16: [`docs/desktop.md`](docs/desktop.md).
 | `npm run test:node` / `npm run test:web` | Vitest — node or web (jsdom) project only |
 | `npm run test:coverage` | Vitest with V8 coverage |
 | `npm run test:e2e` | Playwright end-to-end + accessibility |
+| `npm run diagnose` | Live provider diagnostics: every adapter × 7 locations, real HTTP → table + `diagnostics-report.json` (`-- --watch` for extended observation) |
 | `npm run verify` | lint → format:check → typecheck → test → build |
 
 ---
