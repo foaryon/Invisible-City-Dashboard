@@ -179,7 +179,16 @@ describe('Overpass POI adapter', () => {
     expect(env.status).toBe('ok');
     const categories = new Set(env.data!.pois.map((p) => p.category));
     expect(categories).toEqual(
-      new Set(['park', 'pharmacy', 'toilet', 'drinking-water', 'transit-stop']),
+      new Set([
+        'park',
+        'pharmacy',
+        'toilet',
+        'drinking-water',
+        'transit-stop',
+        'defibrillator',
+        'hospital',
+        'fire-station',
+      ]),
     );
     expect(env.data!.pois.every((p) => p.mode === 'mapped')).toBe(true);
     expect(env.evidence[0]!.attribution).toContain('OpenStreetMap contributors');

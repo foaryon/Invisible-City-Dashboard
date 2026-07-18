@@ -29,6 +29,9 @@ const CATEGORY_COLOR: Record<string, string> = {
   pharmacy: tokens.pharmacy,
   toilet: tokens.toilet,
   'drinking-water': tokens.water,
+  defibrillator: tokens.defibrillator,
+  hospital: tokens.hospital,
+  'fire-station': tokens.fireStation,
 };
 
 function markerEl(color: string, shape: 'circle' | 'ring' | 'square', title: string): HTMLElement {

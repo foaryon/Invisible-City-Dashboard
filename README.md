@@ -31,6 +31,7 @@ config-driven code.
 | Air quality (stations) | Umweltbundesamt / Länder (Air Data API) | observed | live (keyless) |
 | Air quality (regional model) | CAMS (Copernicus ADS, NetCDF) | modelled, ~10 km grid | live when `CAMS_ADS_KEY` set |
 | Place & POI context | OpenStreetMap (Overpass) | mapped | live (keyless) |
+| Emergency & health (AED, hospital, fire station, pharmacy) | OpenStreetMap (Overpass) | mapped | live (keyless) |
 | Transit — stops | OSM (mapped) / DELFI GTFS | mapped / scheduled | stops live; departures when GTFS imported |
 | Transit — scheduled | DELFI GTFS (imported to SQLite) | scheduled | live when `GTFS_STATIC_PATH` set |
 | Transit — realtime | DELFI DEEZ / gtfs.de GTFS-RT | realtime (partial) | live when `GTFS_RT_URL` set |

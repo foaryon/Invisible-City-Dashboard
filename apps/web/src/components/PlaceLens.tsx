@@ -24,6 +24,7 @@ import {
   useClimateNormals,
   useFuel,
   useStationFacilities,
+  usePois,
 } from '../queries.js';
 import {
   DataModeChip,
@@ -972,6 +973,75 @@ function StationFacilitiesModule() {
   );
 }
 
+const EMERGENCY_LABEL: Record<string, string> = {
+  defibrillator: 'Defibrillator (AED)',
+  hospital: 'Krankenhaus',
+  'fire-station': 'Feuerwache',
+  pharmacy: 'Apotheke',
+};
+const EMERGENCY_ORDER = ['defibrillator', 'hospital', 'pharmacy', 'fire-station'];
+
+function EmergencyModule() {
+  const { selectedPlace, demoMode } = useAppStore();
+  const q = usePois(selectedPlace, demoMode);
+  const pois = useMemo(
+    () =>
+      (q.data?.data?.pois ?? [])
+        .filter((p) => EMERGENCY_ORDER.includes(p.category))
+        .sort(
+          (a, b) =>
+            EMERGENCY_ORDER.indexOf(a.category) - EMERGENCY_ORDER.indexOf(b.category) ||
+            a.distanceMeters - b.distanceMeters,
+        ),
+    [q.data],
+  );
+  // First (nearest) of each category.
+  const seen = new Set<string>();
+  const nearest = pois.filter((p) => (seen.has(p.category) ? false : seen.add(p.category)));
+
+  return (
+    <div className="card">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <strong>Notfall & Gesundheit</strong>
+        {q.data ? <StatusPill status={q.data.status} /> : null}
+      </div>
+      {q.isLoading ? <LoadingNote /> : null}
+      {q.data && nearest.length === 0 ? (
+        <p className="loading-shimmer" style={{ marginBottom: 0 }}>
+          Keine kartierte Notfall-/Gesundheitsinfrastruktur (AED, Krankenhaus, Apotheke, Feuerwache)
+          im Umkreis — Kartierungsstand OSM, nicht zwingend vollständig.
+        </p>
+      ) : null}
+      {nearest.length > 0 ? (
+        <div style={{ marginTop: 8 }}>
+          {nearest.map((p) => (
+            <ValueRow key={p.id} label={EMERGENCY_LABEL[p.category] ?? p.category} na={false}>
+              {p.name ?? 'ohne Namen'}{' '}
+              <span style={{ color: 'var(--text-faint)', fontSize: 11 }}>
+                · {formatDistanceGerman(p.distanceMeters)}
+              </span>{' '}
+              <DataModeChip mode={p.mode} />
+            </ValueRow>
+          ))}
+          <p className="loading-shimmer" style={{ marginBottom: 0 }}>
+            Kartierter OSM-Kontext — keine Aussage über Öffnung, Verfügbarkeit oder Betrieb; das
+            Fehlen bedeutet nicht, dass nichts existiert.
+          </p>
+        </div>
+      ) : null}
+      {q.data ? (
+        <div style={{ marginTop: 8 }}>
+          <InspectButton
+            title="Notfall & Gesundheit (OSM)"
+            evidence={q.data.evidence}
+            limitations={q.data.limitations}
+          />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function PlaceLens() {
   const selectedPlace = useAppStore((s) => s.selectedPlace);
 
@@ -1005,6 +1075,7 @@ export function PlaceLens() {
           <WaterModule />
           <RadiationModule />
           <QuakesModule />
+          <EmergencyModule />
           <AutobahnModule />
           <FuelModule />
           <StationFacilitiesModule />

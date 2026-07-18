@@ -159,6 +159,19 @@ export function CoverageMatrix() {
       detail: 'OSM, Vollständigkeit unbekannt',
     },
     {
+      label: 'Notfall & Gesundheit',
+      state: (() => {
+        const base = moduleState(pois.data?.status, pois.isLoading);
+        if (base !== 'available') return base;
+        const n =
+          pois.data?.data?.pois.filter((p) =>
+            ['defibrillator', 'hospital', 'fire-station', 'pharmacy'].includes(p.category),
+          ).length ?? 0;
+        return n > 0 ? 'available' : 'partial';
+      })(),
+      detail: 'AED/Krankenhaus/Apotheke/Feuerwache (OSM)',
+    },
+    {
       label: 'Regenradar',
       state: moduleState(radar.data?.status, radar.isLoading),
       detail: 'DWD RADOLAN 1 km (über Bright Sky)',
