@@ -211,6 +211,10 @@
         { name: 'Köln', lat: 50.938, lon: 6.96 },
         { name: 'Eifel (ländlich)', lat: 50.3, lon: 6.6 },
         { name: 'Sylt (Insel)', lat: 54.9, lon: 8.3 },
+        // Grenzfälle: hier sind ehrliche Absenzen (unavailable) das ERWARTETE Bild.
+        { name: 'Nordsee (offshore)', lat: 54.5, lon: 6.5 },
+        { name: 'Zugspitze (alpin)', lat: 47.421, lon: 10.985 },
+        { name: 'Aachen (Grenze)', lat: 50.77, lon: 6.08 },
       ];
       const MODULES = [
         ['Wetter', 'weather'],
@@ -275,13 +279,19 @@
         const t0 = performance.now();
         try {
           const res = await fetch(path, { signal: AbortSignal.timeout(timeoutMs) });
-          const json = await res.json();
-          return { json, ms: Math.round(performance.now() - t0), httpOk: res.ok };
+          const json = await res.json().catch(() => null);
+          return {
+            json,
+            ms: Math.round(performance.now() - t0),
+            httpOk: res.ok,
+            httpStatus: res.status,
+          };
         } catch (e) {
           return {
             json: null,
             ms: Math.round(performance.now() - t0),
             httpOk: false,
+            httpStatus: 0,
             err: e.message,
           };
         }
@@ -356,6 +366,96 @@
             nina.json?.data
               ? `ARS ${nina.json.data.ars} · ${nina.json.data.municipalityName ?? '—'} · ${nina.ms} ms`
               : (nina.json?.statusDetail ?? nina.err ?? ''),
+          ),
+        );
+
+        // Fehleingaben: die API muss mit 400 antworten, niemals mit 500 oder Daten.
+        const bad1 = await call('/api/weather?lat=99&lon=8', 10000);
+        const bad2 = await call('/api/warnings?lat=50&lon=abc', 10000);
+        const bad3 = await call('/api/pois', 10000);
+        out.push(
+          assertRow(
+            'Ungültige Eingaben → HTTP 400 (lat=99 · lon=abc · fehlende Parameter)',
+            bad1.httpStatus === 400 && bad2.httpStatus === 400 && bad3.httpStatus === 400,
+            `HTTP ${bad1.httpStatus} / ${bad2.httpStatus} / ${bad3.httpStatus}`,
+          ),
+        );
+
+        // Demo-Gating: ohne ENABLE_DEMO darf ?demo=1 NIE Demo-Daten liefern.
+        const demo = await call('/api/uv?lat=49.7596&lon=6.6439&demo=1', 20000);
+        out.push(
+          assertRow(
+            'Demo-Gating: ?demo=1 ohne ENABLE_DEMO bleibt Live (demo=false)',
+            demo.json?.demo === false && demo.json?.status !== 'demo',
+            `status=${demo.json?.status ?? '—'} · demo=${String(demo.json?.demo)}`,
+          ),
+        );
+
+        // Produktgrenze Deutschland: "Paris" darf keinen Treffer liefern.
+        const paris = await call('/api/search?q=Paris', 20000);
+        const parisHits = (paris.json?.data ?? []).length;
+        out.push(
+          assertRow(
+            'Suche „Paris" → keine Treffer außerhalb Deutschlands',
+            paris.json?.status !== 'source-error' && parisHits === 0,
+            `${parisHits} Treffer · status=${paris.json?.status ?? '—'}`,
+          ),
+        );
+
+        // Unsinnseingabe: ehrlich leer, kein Absturz.
+        const gibberish = await call('/api/search?q=xqzzqywv', 20000);
+        out.push(
+          assertRow(
+            'Suche Unsinnseingabe → leeres Ergebnis, kein Fehler',
+            gibberish.httpStatus === 200 && (gibberish.json?.data ?? []).length === 0,
+            `HTTP ${gibberish.httpStatus} · ${(gibberish.json?.data ?? []).length} Treffer`,
+          ),
+        );
+
+        // Reverse ländlich: Kartenklick-Fluss liefert Label + Bundesland.
+        const rural = await call('/api/reverse?lat=52.9&lon=13.8', 20000);
+        const rr = rural.json?.data?.[0]?.place;
+        out.push(
+          assertRow(
+            'Reverse ländlich (Brandenburg) → Label + Bundesland vorhanden',
+            !!rr?.label && !!rr?.state,
+            rr ? `${rr.label} · ${rr.state}` : (rural.err ?? 'kein Ergebnis'),
+          ),
+        );
+
+        // Readiness-Konsistenz: genau die schlüsselpflichtigen Provider sind
+        // nicht live (sofern keine .env-Keys gesetzt sind); alle anderen live.
+        const readiness = await call('/api/readiness', 10000);
+        const gated = new Set([
+          'delfi-gtfs',
+          'delfi-gtfs-rt',
+          'cams-eu-airquality',
+          'tankerkoenig-mtsk',
+          'db-fasta',
+          'bvl-lebensmittelwarnung',
+        ]);
+        const provs = readiness.json?.providers ?? [];
+        const wrong = provs.filter((p) =>
+          gated.has(p.providerId) ? p.live && !p.configured : !p.live,
+        );
+        out.push(
+          assertRow(
+            'Readiness: Live-Status konsistent zur Konfiguration (22 Provider)',
+            provs.length >= 20 && wrong.length === 0,
+            wrong.length === 0
+              ? `${provs.length} Provider · ${provs.filter((p) => p.live).length} live`
+              : `abweichend: ${wrong.map((p) => p.providerId).join(', ')}`,
+          ),
+        );
+
+        // Cache-Verhalten: identischer zweiter Aufruf muss schnell sein.
+        await call('/api/climate-normals?lat=48.7758&lon=9.1829', 30000);
+        const cached = await call('/api/climate-normals?lat=48.7758&lon=9.1829', 30000);
+        out.push(
+          assertRow(
+            'Cache: wiederholter identischer Aufruf antwortet schnell (< 500 ms)',
+            cached.ms < 500 && cached.json?.status === 'ok',
+            `${cached.ms} ms · status=${cached.json?.status ?? '—'}`,
           ),
         );
 
