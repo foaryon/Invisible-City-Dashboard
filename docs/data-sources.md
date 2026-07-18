@@ -1,7 +1,7 @@
 # Data sources & provider manifest
 
 The machine-readable manifest is `packages/providers/src/manifest.ts`
-(version **`2026-07-17.3`**). Only providers with status **`verified`** serve live
+(version **`2026-07-18.1`**). Only providers with status **`verified`** serve live
 production responses. This document summarises each provider's license, attribution,
 coverage, cache policy and **open verification tasks**.
 
@@ -163,6 +163,55 @@ documentation, license, attribution and technical terms before activation.
 - **TO VERIFY:** unit scaling and `distance`/`latlon_position` parameter semantics live;
   WMS layer name for the overlay.
 
+### BBK — civil-protection warnings via NINA (`nina-bbk`)
+- **Endpoint:** `https://warnung.bund.de/api31/dashboard/{ARS}.json` (bund.dev-documented;
+  district-level ARS = first 5 digits + seven zeros). All-hazard official warnings: MoWaS,
+  KATWARN, BIWAPP, flood portal, DWD.
+- **Semantics:** warnings apply to the DISTRICT (Kreis), never to the exact pin. The
+  district is identified via the official territorial assignment (BKG VG250, below); both
+  sources appear in the Evidence. Absence of warnings = absence of published messages.
+- **License/attribution:** dl-de/by-2-0; `Quelle: Bundesamt für Bevölkerungsschutz und
+  Katastrophenhilfe (BBK)`.
+- **TO VERIFY:** dashboard payload schema; district-ARS convention.
+
+### BKG — official territorial assignment, VG250 (`bkg-vg250`)
+- **Endpoint:** `https://sgx.geodatenzentrum.de/wfs_vg250` (WFS GetFeature, layer
+  `vg250_gem`, point INTERSECTS, GeoJSON). Yields the official Gemeinde + ARS for a point.
+- **License/attribution:** dl-de/by-2-0; `© GeoBasis-DE / BKG (2026)`.
+- **TO VERIFY:** geometry column name for INTERSECTS (documented `geom`); property names
+  (`ars`, `gen`, `bez`).
+
+### Autobahn GmbH — motorway events (`autobahn-gmbh`)
+- **Endpoint:** `https://verkehr.autobahn.de/o/autobahn` (bund.dev-documented;
+  `/{roadId}/services/warning|closure|roadworks`). The API is per-motorway with no bbox
+  query, so the adapter aggregates ALL motorways into one nationally shared cached
+  snapshot (bounded concurrency; warnings/closures 15 min, roadworks 60 min) and filters
+  locally by distance (30 km).
+- **Semantics:** federal motorways ONLY — absence of events is never a statement about
+  other roads or free flow.
+- **License/attribution:** dl-de/by-2-0 (**TO VERIFY**); `Quelle: Autobahn GmbH des Bundes`.
+- **TO VERIFY:** response schema (`coordinate`/`title`/`subtitle`); license wording.
+
+### GFZ — earthquakes via GEOFON (`gfz-geofon`)
+- **Endpoint:** `https://geofon.gfz-potsdam.de/fdsnws/event/1/query` (FDSN standard,
+  `format=text`, pipe-separated). Radius 200 km, window 90 days.
+- **Semantics:** catalogue events (epicentre, magnitude) — never local shaking; an empty
+  list is the normal, honest outcome for most of Germany (FDSN 204 handled as such).
+- **License/attribution:** CC BY 4.0 (**TO VERIFY**); `Quelle: GFZ Helmholtz-Zentrum für
+  Geoforschung / GEOFON`.
+- **TO VERIFY:** text column order; 204 semantics; license wording.
+
+### DWD — climate normals 1991–2020, CDC (`dwd-cdc-normals`)
+- **Endpoint:** `https://opendata.dwd.de/climate_environment/CDC/observations_germany/climate/multi_annual/mean_91-20`
+  (documented semicolon tables: per-parameter station list + values; latin1-decoded;
+  cached 30 days). Temperature + precipitation; current-month and annual normals of the
+  nearest climate station.
+- **Semantics:** a STATISTICAL REFERENCE for context ("is today unusual?") — never a
+  current condition or forecast; the normals station may differ from the weather-module
+  station (combine, never fuse — stated in the Evidence).
+- **License/attribution:** CC BY 4.0; `Quelle: Deutscher Wetterdienst`.
+- **TO VERIFY:** file names and column layout of the mean_91-20 tables.
+
 ---
 
 ## Integrated — real adapters, live once configured (honest "Konfiguration erforderlich" until then)
@@ -218,6 +267,40 @@ envelope naming the exact env var — never demo, never invented data.
 - **TO VERIFY:** document operator/area coverage before any realtime is labelled `confirmed`
   (currently reported as `partial`).
 
+### Tankerkönig — fuel prices, MTS-K data (`tankerkoenig-mtsk`) — activate with `TANKERKOENIG_API_KEY`
+- **Endpoint:** `https://creativecommons.tankerkoenig.de/json/list.php` (radius query,
+  free API key). Data: official Markttransparenzstelle für Kraftstoffe (Bundeskartellamt);
+  Tankerkönig is an UNOFFICIAL access layer, labelled as such.
+- **Semantics:** operator-NOTIFIED prices (small delays/notification errors possible —
+  stated); `false` prices normalized to null, never to 0. Fair use: 5-min cache per
+  location (provider rule).
+- **License/attribution:** CC BY 4.0; `Quelle: MTS-K / Tankerkönig`.
+- **TO VERIFY:** `list.php` schema against a real key.
+
+### DB FaSta — station elevators/escalators (`db-fasta`) — activate with `DB_CLIENT_ID` + `DB_API_KEY`
+- **Endpoint:** `https://apis.deutschebahn.com/db-api-marketplace/apis/fasta/v2/facilities`
+  (free DB API Marketplace credentials; nationwide snapshot cached and filtered locally,
+  3-km radius).
+- **Semantics:** DB stations only; `UNKNOWN` = "not determinable", never "working" —
+  rendered exactly so.
+- **License/attribution:** CC BY 4.0 (**TO VERIFY**); `Quelle: DB InfraGO AG (FaSta)`.
+- **TO VERIFY:** schema (`equipmentnumber`/`geocoordX`/`geocoordY`) against real credentials.
+
+---
+
+## Vetted candidates (documented automatic interfaces, not yet integrated)
+
+- **BVL Lebensmittelwarnung (`bvl-lebensmittelwarnung`, manifest `proposed`)** — official
+  food/product recalls per Bundesland, bund.dev-documented. The documented interface's
+  auth semantics must be verified live before an adapter is built; until then the manifest
+  entry exists, the activation gate is hard-off, and nothing is served.
+- **DB Timetables / RIS::Stations (Tier 2)** — documented DB API Marketplace services that
+  could enrich the transit module (official station data, live departures) with the same
+  free-credential gating as FaSta.
+- **SMARD (Bundesnetzagentur)** — documented API, but national bidding-zone data with no
+  place relation; only honest as an explicitly labelled "Deutschland-Kontext" panel
+  (deliberately deferred).
+
 ---
 
 ## Evaluated and removed
@@ -246,7 +329,13 @@ Thru.de publish a documented automatic interface.
 | OpenFreeMap | `OpenFreeMap © OpenMapTiles Data from OpenStreetMap` |
 | WSV/PEGELONLINE | `Quelle: WSV / PEGELONLINE` |
 | BfS ODL | `Quelle: Bundesamt für Strahlenschutz (BfS), ODL-Messnetz` |
-| DWD (pollen, UV, radar) | `Quelle: Deutscher Wetterdienst` |
+| DWD (pollen, UV, radar, Klimanormale) | `Quelle: Deutscher Wetterdienst` |
+| BBK NINA | `Quelle: Bundesamt für Bevölkerungsschutz und Katastrophenhilfe (BBK)` |
+| BKG VG250 | `© GeoBasis-DE / BKG (2026)` |
+| Autobahn GmbH | `Quelle: Autobahn GmbH des Bundes` |
+| GFZ GEOFON | `Quelle: GFZ Helmholtz-Zentrum für Geoforschung / GEOFON` |
+| Tankerkönig/MTS-K | `Quelle: MTS-K / Tankerkönig` |
+| DB FaSta | `Quelle: DB InfraGO AG (FaSta, DB API Marketplace)` |
 | CAMS (future) | `Generated using Copernicus Atmosphere Monitoring Service information 2026` |
 | DELFI (future) | `Datenquelle: DELFI e.V.` |
 | BKG VG250 (future) | `© BKG (Jahr) dl-de/by-2-0` |
@@ -269,3 +358,11 @@ adapters are implemented; runtime Zod validation makes any schema mismatch fail 
 11. **DWD pollen** — `s31fg.json` schema; optional polygon-based partregion assignment.
 12. **DWD UV** — `uvi.json` schema; reconcile location names with the coordinate table.
 13. **DWD radar** — Bright Sky `/radar` unit scaling + parameters; WMS overlay layer name.
+14. **NINA** — dashboard payload schema; district-ARS convention.
+15. **BKG VG250** — geometry column for INTERSECTS; property names (`ars`, `gen`, `bez`).
+16. **Autobahn** — per-road response schema; license wording.
+17. **GEOFON** — FDSN text column order; 204 semantics; license wording.
+18. **DWD CDC normals** — mean_91-20 file names + column layout.
+19. **Tankerkönig** — `list.php` schema against a real key.
+20. **DB FaSta** — schema against real credentials.
+21. **BVL Lebensmittelwarnung** — endpoint/auth semantics before any adapter is built.

@@ -147,6 +147,12 @@ describe('demo/live separation (§3.1.J) — every demo adapter is stamped', () 
       await demoAdapters.pollen('Berlin'),
       await demoAdapters.uv(coords),
       await demoAdapters.radar(coords),
+      await demoAdapters.civilWarnings(coords),
+      await demoAdapters.autobahn(coords),
+      await demoAdapters.quakes(coords),
+      await demoAdapters.climateNormals(coords),
+      await demoAdapters.fuel(coords),
+      await demoAdapters.stationFacilities(coords),
     ];
     for (const env of envelopes) {
       expect(env.demo).toBe(true);

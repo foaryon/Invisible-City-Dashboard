@@ -77,6 +77,58 @@ export async function fetchJsonWithCache<T = unknown>(
   }
 }
 
+/**
+ * Text variant of fetchJsonWithCache for documented plain-text interfaces
+ * (FDSN "format=text", DWD CDC semicolon tables). Same manifest gate, cache
+ * and visible-staleness semantics; `latin1` handles CDC umlauts (the CDC
+ * tables are not UTF-8).
+ */
+export async function fetchTextWithCache(
+  provider: ProviderManifestEntry,
+  fingerprint: string,
+  url: string,
+  ctx: AdapterContext,
+  init?: RequestInit,
+  ttlSecondsOverride?: number,
+  encoding: 'utf8' | 'latin1' = 'utf8',
+): Promise<RawResult<string>> {
+  if (provider.status !== 'verified') {
+    throw new ProviderNotLiveError(provider.providerId, provider.status);
+  }
+  const ttl = ttlSecondsOverride ?? provider.cachePolicy.ttlSeconds;
+  const cached = ctx.cache.get<string>(provider.providerId, fingerprint, ttl);
+  if (cached && !cached.stale) {
+    return {
+      raw: cached.payload,
+      retrievedAt: cached.retrievedAt,
+      cacheAgeSeconds: cached.ageSeconds,
+      stale: false,
+    };
+  }
+  try {
+    const res = await policedFetch(url, {
+      init: init ?? {},
+      ...(ctx.fetchImpl ? { fetchImpl: ctx.fetchImpl } : {}),
+    });
+    const raw =
+      encoding === 'latin1'
+        ? Buffer.from(await res.arrayBuffer()).toString('latin1')
+        : await res.text();
+    ctx.cache.set(provider.providerId, fingerprint, provider.validationSchemaVersion, raw);
+    return { raw, retrievedAt: new Date().toISOString(), cacheAgeSeconds: 0, stale: false };
+  } catch (err) {
+    if (cached) {
+      return {
+        raw: cached.payload,
+        retrievedAt: cached.retrievedAt,
+        cacheAgeSeconds: cached.ageSeconds,
+        stale: true,
+      };
+    }
+    throw err;
+  }
+}
+
 export function errorEnvelope<T>(err: unknown, limitations: string[] = []): ModuleEnvelope<T> {
   const retrievedAt = new Date().toISOString();
   if (err instanceof ProviderNotLiveError) {

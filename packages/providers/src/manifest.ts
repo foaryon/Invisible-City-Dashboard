@@ -13,7 +13,7 @@
 import { ProviderManifestEntrySchema, type ProviderManifestEntry } from '@invisible-city/contracts';
 import { isConfigured, type ProviderConfig } from './config.js';
 
-export const MANIFEST_VERSION = '2026-07-17.3';
+export const MANIFEST_VERSION = '2026-07-18.1';
 
 const entries: ProviderManifestEntry[] = [
   {
@@ -431,6 +431,251 @@ const entries: ProviderManifestEntry[] = [
       'Parameter-Semantik (distance, latlon_position) und WMS-Layernamen des Karten-Overlays live re-verifizieren.',
     ],
   },
+  {
+    providerId: 'nina-bbk',
+    displayName: 'NINA Zivilschutz-Warnungen (BBK)',
+    institution: 'Bundesamt für Bevölkerungsschutz und Katastrophenhilfe (BBK)',
+    sourceCategory: 'federal-authority',
+    originalSourceUrl: 'https://warnung.bund.de',
+    technicalEndpoint:
+      'https://warnung.bund.de/api31/dashboard/{ARS}.json (bund.dev-dokumentiert; ARS auf Kreisebene)',
+    accessMethod: 'HTTPS GET, JSON, kein API-Key',
+    license: 'Datenlizenz Deutschland Namensnennung 2.0 (dl-de/by-2-0)',
+    attributionText: 'Quelle: Bundesamt für Bevölkerungsschutz und Katastrophenhilfe (BBK)',
+    coverage: 'Deutschland, Kreisebene (MoWaS, KATWARN, BIWAPP, Hochwasserportal, DWD)',
+    updateCadence: 'ereignisgesteuert',
+    supportedDataModes: ['observed'],
+    geographicSemantics: ['coverage'],
+    validationSchemaVersion: 'nina-v31',
+    cachePolicy: {
+      ttlSeconds: 300,
+      rationale: 'Warnlagen sind zeitkritisch; kurzer Cache nur zur Lastbegrenzung.',
+    },
+    status: 'verified',
+    reviewDate: '2026-07-18',
+    knownLimitations: [
+      'Warnungen gelten für den amtlichen KREIS (ARS-Ebene), nicht für den exakten Pin.',
+      'Das Fehlen von Warnungen ist eine Aussage über veröffentlichte Meldungen, nicht über die tatsächliche Lage.',
+      'Die Kreiszuordnung erfolgt über die amtliche Gebietszuordnung (BKG VG250).',
+    ],
+    toVerify: [
+      'Dashboard-Antwortschema (payload.data: headline/provider/severity/msgType, sent) live re-verifizieren.',
+      'ARS-Konvention (Kreisebene: Stellen 1–5 + „0000000“) gegen die bund.dev-Doku bestätigen.',
+    ],
+  },
+  {
+    providerId: 'bkg-vg250',
+    displayName: 'BKG VG250 (amtliche Gebietszuordnung)',
+    institution: 'Bundesamt für Kartographie und Geodäsie (BKG)',
+    sourceCategory: 'federal-authority',
+    originalSourceUrl: 'https://gdz.bkg.bund.de',
+    technicalEndpoint:
+      'https://sgx.geodatenzentrum.de/wfs_vg250 (WFS GetFeature, Layer vg250_gem, Punkt-INTERSECTS, GeoJSON)',
+    accessMethod: 'HTTPS GET (WFS GetFeature), GeoJSON, kein API-Key',
+    license: 'Datenlizenz Deutschland Namensnennung 2.0 (dl-de/by-2-0)',
+    attributionText: '© GeoBasis-DE / BKG (2026)',
+    coverage: 'Deutschland, Verwaltungsgrenzen (Gemeinde/Kreis/Land)',
+    updateCadence: 'jährlicher Gebietsstand, laufend bereitgestellt',
+    supportedDataModes: ['mapped'],
+    geographicSemantics: ['geometry'],
+    validationSchemaVersion: 'bkg-vg250-wfs-v1',
+    cachePolicy: {
+      ttlSeconds: 86400,
+      rationale: 'Verwaltungszuordnung eines Punktes ändert sich praktisch nie.',
+    },
+    status: 'verified',
+    reviewDate: '2026-07-18',
+    knownLimitations: [
+      'Amtliche Verwaltungszuordnung (Gemeinde/ARS) — kartierter Verwaltungskontext, keine Zustandsaussage.',
+    ],
+    toVerify: [
+      'Geometriespalten-Name für den INTERSECTS-Filter live verifizieren (dokumentiert: geom).',
+      'Property-Namen (ars, gen, bez) des WFS-Layers vg250_gem live re-verifizieren.',
+    ],
+  },
+  {
+    providerId: 'autobahn-gmbh',
+    displayName: 'Autobahn-Verkehrslage (Autobahn GmbH)',
+    institution: 'Die Autobahn GmbH des Bundes',
+    sourceCategory: 'federal-authority',
+    originalSourceUrl: 'https://verkehr.autobahn.de',
+    technicalEndpoint:
+      'https://verkehr.autobahn.de/o/autobahn (bund.dev-dokumentiert: /{roadId}/services/warning|closure|roadworks)',
+    accessMethod: 'HTTPS GET, JSON, kein API-Key',
+    license: 'Datenlizenz Deutschland Namensnennung 2.0 (dl-de/by-2-0)',
+    attributionText: 'Quelle: Autobahn GmbH des Bundes',
+    coverage: 'NUR Bundesautobahnen — keine Aussage über andere Straßen',
+    updateCadence: 'laufend (Meldungslage)',
+    supportedDataModes: ['observed'],
+    geographicSemantics: ['geometry'],
+    validationSchemaVersion: 'autobahn-v1',
+    cachePolicy: {
+      ttlSeconds: 900,
+      rationale:
+        'Das API ist je Autobahn organisiert; die aggregierte Abfrage aller Autobahnen wird 15 min landesweit geteilt (Baustellen 60 min).',
+    },
+    status: 'verified',
+    reviewDate: '2026-07-18',
+    knownLimitations: [
+      'Abdeckung NUR Bundesautobahnen; das Fehlen von Meldungen ist keine Aussage über andere Straßen oder freien Verkehr.',
+      'Meldungen sind quellendefinierte Ereignisse der Autobahn GmbH.',
+    ],
+    toVerify: [
+      'Antwortschema (roads, warning/closure/roadworks: coordinate/title/subtitle) live re-verifizieren.',
+      'Lizenzangabe dl-de/by-2-0 gegen die bund.dev-/Autobahn-GmbH-Angaben bestätigen.',
+    ],
+  },
+  {
+    providerId: 'gfz-geofon',
+    displayName: 'GEOFON Erdbebendienst (GFZ)',
+    institution: 'GFZ Helmholtz-Zentrum für Geoforschung, Potsdam',
+    sourceCategory: 'federal-authority',
+    originalSourceUrl: 'https://geofon.gfz-potsdam.de',
+    technicalEndpoint:
+      'https://geofon.gfz-potsdam.de/fdsnws/event/1/query (FDSN-Standard, format=text)',
+    accessMethod: 'HTTPS GET (FDSN event web service), Text/QuakeML, kein API-Key',
+    license: 'CC BY 4.0 (GEOFON-Datenprodukte)',
+    attributionText: 'Quelle: GFZ Helmholtz-Zentrum für Geoforschung / GEOFON',
+    coverage: 'weltweit; Produkt fragt einen Umkreis um den gewählten Ort ab',
+    updateCadence: 'ereignisgesteuert (automatische + manuell geprüfte Lösungen)',
+    supportedDataModes: ['observed'],
+    geographicSemantics: ['geometry'],
+    validationSchemaVersion: 'fdsn-event-text-v1',
+    cachePolicy: {
+      ttlSeconds: 900,
+      rationale: 'Seismische Kataloge ändern sich selten; 15-Minuten-Cache genügt.',
+    },
+    status: 'verified',
+    reviewDate: '2026-07-18',
+    knownLimitations: [
+      'Katalogereignisse (Epizentrum, Magnitude) — keine Erschütterungs- oder Schadensaussage am gewählten Ort.',
+      'Keine Ereignisse im Umkreis ist der Normalfall und ein ehrliches Ergebnis.',
+      'Frühe automatische Lösungen können später manuell revidiert werden.',
+    ],
+    toVerify: [
+      'FDSN-text-Spaltenreihenfolge und 204-Semantik (keine Treffer) live re-verifizieren.',
+      'Lizenzangabe CC BY 4.0 gegen die GEOFON-Nutzungsbedingungen bestätigen.',
+    ],
+  },
+  {
+    providerId: 'dwd-cdc-normals',
+    displayName: 'DWD Klimanormalwerte 1991–2020 (CDC)',
+    institution: 'Deutscher Wetterdienst (Climate Data Center)',
+    sourceCategory: 'federal-authority',
+    originalSourceUrl: 'https://opendata.dwd.de',
+    technicalEndpoint:
+      'https://opendata.dwd.de/climate_environment/CDC/observations_germany/climate/multi_annual/mean_91-20 (Stationslisten + Werte, Semikolon-Tabellen)',
+    accessMethod: 'HTTPS GET, dokumentierte Textdateien, kein API-Key',
+    license: 'CC BY 4.0 (DWD)',
+    attributionText: 'Quelle: Deutscher Wetterdienst',
+    coverage: 'Deutschland, Klimastationen mit vieljährigen Mitteln 1991–2020',
+    updateCadence: 'statisch (Referenzperiode); Bereitstellung laufend',
+    supportedDataModes: ['observed'],
+    geographicSemantics: ['station'],
+    validationSchemaVersion: 'dwd-cdc-multiannual-v1',
+    cachePolicy: {
+      ttlSeconds: 2592000,
+      rationale: 'Referenzperioden-Statistik ändert sich nicht; 30-Tage-Cache.',
+    },
+    status: 'verified',
+    reviewDate: '2026-07-18',
+    knownLimitations: [
+      'Vieljährige MITTELWERTE der Referenzperiode 1991–2020 — eine statistische Referenz, kein aktueller Zustand und keine Vorhersage.',
+      'Werte gelten an der jeweiligen Klimastation; die nächste Normalwert-Station kann von der Wetterstation des Wettermoduls abweichen.',
+    ],
+    toVerify: [
+      'Dateinamen und Spaltenlayout der mean_91-20-Tabellen (Stationsliste + Werte) live re-verifizieren.',
+    ],
+  },
+  {
+    providerId: 'tankerkoenig-mtsk',
+    displayName: 'Kraftstoffpreise (Tankerkönig / MTS-K)',
+    institution:
+      'Markttransparenzstelle für Kraftstoffe (Bundeskartellamt); Zugangsschicht: Tankerkönig',
+    sourceCategory: 'unofficial-access-layer',
+    originalSourceUrl: 'https://creativecommons.tankerkoenig.de',
+    technicalEndpoint: 'https://creativecommons.tankerkoenig.de/json/list.php (Umkreisabfrage)',
+    accessMethod: 'HTTPS GET, JSON, kostenloser API-Key ERFORDERLICH',
+    license: 'CC BY 4.0 (Tankerkönig; Daten der MTS-K)',
+    attributionText: 'Quelle: MTS-K / Tankerkönig',
+    coverage: 'Deutschland, meldepflichtige öffentliche Tankstellen',
+    updateCadence: 'laufend (Preisänderungen werden von Betreibern gemeldet)',
+    supportedDataModes: ['realtime'],
+    geographicSemantics: ['station'],
+    validationSchemaVersion: 'tankerkoenig-v4',
+    cachePolicy: {
+      ttlSeconds: 300,
+      rationale: 'Fair-Use-Vorgabe des Anbieters: nicht schneller als alle 5 Minuten je Ort.',
+    },
+    status: 'proposed',
+    reviewDate: '2026-07-18',
+    knownLimitations: [
+      'Preise werden von den Betreibern an die MTS-K GEMELDET; geringe Verzögerungen und Meldefehler sind möglich.',
+      'Tankerkönig ist eine INOFFIZIELLE Zugangsschicht über MTS-K-Daten.',
+      'Integriert; live, sobald TANKERKOENIG_API_KEY konfiguriert ist (kostenlose Registrierung).',
+    ],
+    toVerify: [
+      'Antwortschema (list.php: stations mit e5/e10/diesel/dist/isOpen) gegen einen realen Key verifizieren.',
+    ],
+  },
+  {
+    providerId: 'db-fasta',
+    displayName: 'Bahnhofs-Aufzüge & Fahrtreppen (DB FaSta)',
+    institution: 'DB InfraGO AG (DB API Marketplace)',
+    sourceCategory: 'transport-association',
+    originalSourceUrl: 'https://developers.deutschebahn.com',
+    technicalEndpoint:
+      'https://apis.deutschebahn.com/db-api-marketplace/apis/fasta/v2/facilities (DB-Client-Id/DB-Api-Key-Header)',
+    accessMethod: 'HTTPS GET, JSON, kostenlose DB-API-Marketplace-Zugangsdaten ERFORDERLICH',
+    license: 'CC BY 4.0 (FaSta, DB API Marketplace)',
+    attributionText: 'Quelle: DB InfraGO AG (FaSta, DB API Marketplace)',
+    coverage: 'Deutschland, Aufzüge/Fahrtreppen an DB-Stationen',
+    updateCadence: 'laufend (Betriebszustand)',
+    supportedDataModes: ['realtime'],
+    geographicSemantics: ['station'],
+    validationSchemaVersion: 'db-fasta-v2',
+    cachePolicy: {
+      ttlSeconds: 300,
+      rationale: 'Betriebszustände ändern sich minütlich bis stündlich; 5-Minuten-Cache.',
+    },
+    status: 'proposed',
+    reviewDate: '2026-07-18',
+    knownLimitations: [
+      'Zustand je Anlage (Aufzug/Fahrtreppe) an DB-Stationen — keine Aussage über andere Betreiber oder sonstige Barrierefreiheit.',
+      '„UNKNOWN“ bedeutet: Zustand nicht ermittelbar — nicht „funktioniert“.',
+      'Integriert; live, sobald DB_CLIENT_ID und DB_API_KEY konfiguriert sind (kostenlose Registrierung).',
+    ],
+    toVerify: [
+      'Antwortschema (equipmentnumber/type/state/geocoordX/geocoordY) gegen reale Zugangsdaten verifizieren.',
+    ],
+  },
+  {
+    providerId: 'bvl-lebensmittelwarnung',
+    displayName: 'Lebensmittel- & Produktwarnungen (BVL) — Kandidat',
+    institution: 'Bundesamt für Verbraucherschutz und Lebensmittelsicherheit (BVL)',
+    sourceCategory: 'federal-authority',
+    originalSourceUrl: 'https://www.lebensmittelwarnung.de',
+    technicalEndpoint: 'bund.dev-dokumentierte Schnittstelle (lebensmittelwarnung.api.bund.dev)',
+    accessMethod:
+      'HTTPS, JSON; Auth-Semantik der dokumentierten Schnittstelle noch zu verifizieren',
+    license: 'Datenlizenz Deutschland Namensnennung 2.0 (dl-de/by-2-0)',
+    attributionText: 'Quelle: lebensmittelwarnung.de (BVL)',
+    coverage: 'Deutschland, Warnungen je Bundesland',
+    updateCadence: 'ereignisgesteuert',
+    supportedDataModes: ['observed'],
+    geographicSemantics: ['coverage'],
+    validationSchemaVersion: 'bvl-lmw-v1',
+    cachePolicy: { ttlSeconds: 3600, rationale: 'Ereignisgesteuerte Warnlage; 1-h-Cache.' },
+    status: 'proposed',
+    reviewDate: '2026-07-18',
+    knownLimitations: [
+      'KANDIDAT — noch nicht integriert: die Auth-Semantik der bund.dev-dokumentierten Schnittstelle muss live verifiziert werden, bevor ein Adapter gebaut wird.',
+      'Warnungen gelten je Bundesland (Abdeckungssemantik), nicht ortsscharf.',
+    ],
+    toVerify: [
+      'Endpoint- und Auth-Semantik (bund.dev) live verifizieren; erst danach Adapter-Integration.',
+    ],
+  },
 ];
 
 export const providerManifest: ReadonlyArray<ProviderManifestEntry> = entries.map((e) =>
@@ -477,6 +722,13 @@ const EFFECTIVE_ENDPOINT: Record<string, (c: ProviderConfig) => string> = {
   'dwd-pollen': (c) => `${c.dwdHealthUrl}/s31fg.json`,
   'dwd-uvi': (c) => `${c.dwdHealthUrl}/uvi.json`,
   'dwd-radar': (c) => `${c.brightskyUrl}/radar`,
+  'nina-bbk': (c) => c.ninaUrl,
+  'bkg-vg250': (c) => c.bkgWfsUrl,
+  'autobahn-gmbh': (c) => c.autobahnUrl,
+  'gfz-geofon': (c) => c.geofonUrl,
+  'dwd-cdc-normals': (c) => c.dwdCdcNormalsUrl,
+  'tankerkoenig-mtsk': (c) => c.tankerkoenigUrl,
+  'db-fasta': (c) => c.dbFastaUrl,
 };
 
 /** Only "verified" (incl. config-activated) providers may serve live responses (§5.2). */

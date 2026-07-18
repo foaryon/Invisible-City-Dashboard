@@ -18,6 +18,12 @@ import {
   usePollen,
   useUv,
   useRadar,
+  useCivilWarnings,
+  useAutobahn,
+  useQuakes,
+  useClimateNormals,
+  useFuel,
+  useStationFacilities,
 } from '../queries.js';
 import {
   DataModeChip,
@@ -622,6 +628,350 @@ function RadiationModule() {
   );
 }
 
+function CivilWarningsModule() {
+  const { selectedPlace, demoMode } = useAppStore();
+  const q = useCivilWarnings(selectedPlace, demoMode);
+  const data = q.data?.data;
+
+  return (
+    <div className="card">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <strong>Zivilschutz (NINA)</strong>
+        {q.data ? <StatusPill status={q.data.status} /> : null}
+      </div>
+      {q.isLoading ? <LoadingNote /> : null}
+      {q.data && !data ? (
+        <ModuleStatusNote status={q.data.status} detail={q.data.statusDetail} />
+      ) : null}
+      {data ? (
+        <div style={{ marginTop: 8 }}>
+          {data.warnings.length === 0 ? (
+            <p className="loading-shimmer">
+              Keine veröffentlichte Zivilschutz-Meldung für diesen Kreis zum Abrufzeitpunkt.
+            </p>
+          ) : (
+            <ul className="limitations" style={{ listStyle: 'none', paddingLeft: 0 }}>
+              {data.warnings.map((w) => (
+                <li key={w.id} style={{ color: 'var(--warn)' }}>
+                  <strong>{w.headline ?? 'Meldung ohne Titel'}</strong>
+                  <span style={{ color: 'var(--text-faint)' }}>
+                    {w.provider ? ` — ${w.provider}` : ''}
+                    {w.severity ? ` · ${w.severity}` : ''}
+                    {w.sentAt ? ` · ${formatBerlin(w.sentAt)}` : ''}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="loading-shimmer" style={{ marginBottom: 0 }}>
+            Amtliche Warnlage des Kreises
+            {data.municipalityName ? ` (${data.municipalityName})` : ''} — MoWaS, KATWARN, BIWAPP,
+            Hochwasserportal.
+          </p>
+        </div>
+      ) : null}
+      {q.data ? (
+        <div style={{ marginTop: 8 }}>
+          <InspectButton
+            title="Zivilschutz-Warnungen (BBK NINA)"
+            evidence={q.data.evidence}
+            limitations={q.data.limitations}
+          />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+const AUTOBAHN_KIND_LABEL: Record<string, string> = {
+  warning: 'Verkehrsmeldung',
+  closure: 'Sperrung',
+  roadworks: 'Baustelle',
+};
+
+function AutobahnModule() {
+  const { selectedPlace, demoMode } = useAppStore();
+  const q = useAutobahn(selectedPlace, demoMode);
+  const data = q.data?.data;
+
+  return (
+    <div className="card">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <strong>Autobahn-Verkehrslage</strong>
+        {q.data ? <StatusPill status={q.data.status} /> : null}
+      </div>
+      {q.isLoading ? <LoadingNote /> : null}
+      {q.data && (!data || data.events.length === 0) ? (
+        <ModuleStatusNote status={q.data.status} detail={q.data.statusDetail} />
+      ) : null}
+      {data && data.events.length > 0 ? (
+        <div style={{ marginTop: 8 }}>
+          {data.events.map((e) => (
+            <div key={e.id} style={{ marginBottom: 6, fontSize: 12 }}>
+              <strong>
+                {e.roadId} · {AUTOBAHN_KIND_LABEL[e.kind] ?? e.kind}
+              </strong>{' '}
+              {e.distanceMeters !== null ? (
+                <span style={{ color: 'var(--text-faint)', fontSize: 11 }}>
+                  · {formatDistanceGerman(e.distanceMeters)}
+                </span>
+              ) : null}
+              <div style={{ color: 'var(--text-dim)', fontSize: 11 }}>
+                {e.title ?? ''}
+                {e.subtitle ? ` — ${e.subtitle}` : ''}
+              </div>
+            </div>
+          ))}
+          <p className="loading-shimmer" style={{ marginBottom: 0 }}>
+            Nur Bundesautobahnen — keine Aussage über andere Straßen.
+          </p>
+        </div>
+      ) : null}
+      {q.data ? (
+        <div style={{ marginTop: 8 }}>
+          <InspectButton
+            title="Autobahn-Verkehrslage (Autobahn GmbH)"
+            evidence={q.data.evidence}
+            limitations={q.data.limitations}
+          />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function QuakesModule() {
+  const { selectedPlace, demoMode } = useAppStore();
+  const q = useQuakes(selectedPlace, demoMode);
+  const data = q.data?.data;
+
+  return (
+    <div className="card">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <strong>Erdbeben (GEOFON)</strong>
+        {q.data ? <StatusPill status={q.data.status} /> : null}
+      </div>
+      {q.isLoading ? <LoadingNote /> : null}
+      {q.data && (!data || data.events.length === 0) ? (
+        <ModuleStatusNote status={q.data.status} detail={q.data.statusDetail} />
+      ) : null}
+      {data && data.events.length > 0 ? (
+        <div style={{ marginTop: 8 }}>
+          {data.events.map((e) => (
+            <ValueRow
+              key={e.id}
+              label={e.time ? formatBerlin(e.time) : e.id}
+              na={e.magnitude === null}
+            >
+              {e.magnitude === null ? 'n/v' : `${e.magType ?? 'M'} ${e.magnitude}`}{' '}
+              <span style={{ color: 'var(--text-faint)', fontSize: 11 }}>
+                · {formatDistanceGerman(e.distanceMeters)}
+                {e.locationName ? ` · ${e.locationName}` : ''}
+              </span>{' '}
+              <DataModeChip mode={e.mode} />
+            </ValueRow>
+          ))}
+          <p className="loading-shimmer" style={{ marginBottom: 0 }}>
+            Katalogereignisse (Epizentrum, Magnitude) im Umkreis von {data.searchRadiusKm} km,
+            letzte {data.windowDays} Tage — keine Aussage über Erschütterungen am Pin.
+          </p>
+        </div>
+      ) : null}
+      {q.data ? (
+        <div style={{ marginTop: 8 }}>
+          <InspectButton
+            title="Erdbeben (GFZ GEOFON)"
+            evidence={q.data.evidence}
+            limitations={q.data.limitations}
+          />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+const MONTH_NAME_DE = [
+  'Januar',
+  'Februar',
+  'März',
+  'April',
+  'Mai',
+  'Juni',
+  'Juli',
+  'August',
+  'September',
+  'Oktober',
+  'November',
+  'Dezember',
+];
+
+function ClimateNormalsModule() {
+  const { selectedPlace, demoMode } = useAppStore();
+  const q = useClimateNormals(selectedPlace, demoMode);
+  const data = q.data?.data;
+
+  return (
+    <div className="card">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <strong>Klimanormalwerte</strong>
+        {q.data ? <StatusPill status={q.data.status} /> : null}
+      </div>
+      {q.isLoading ? <LoadingNote /> : null}
+      {q.data && !data ? (
+        <ModuleStatusNote status={q.data.status} detail={q.data.statusDetail} />
+      ) : null}
+      {data ? (
+        <div style={{ marginTop: 8 }}>
+          <div style={{ marginBottom: 6, fontSize: 12 }}>
+            <strong>{data.stationName ?? `Station ${data.stationId}`}</strong>{' '}
+            <span style={{ color: 'var(--text-faint)', fontSize: 11 }}>
+              · {formatDistanceGerman(data.distanceMeters)} · Referenz {data.referencePeriod}
+            </span>
+          </div>
+          {data.values.map((v) => (
+            <ValueRow
+              key={v.parameter}
+              label={
+                v.parameter === 'temperature'
+                  ? `Ø Temperatur ${MONTH_NAME_DE[data.month - 1]}`
+                  : `Ø Niederschlag ${MONTH_NAME_DE[data.month - 1]}`
+              }
+              na={v.monthValue === null}
+            >
+              {v.monthValue === null ? 'n/v' : `${v.monthValue} ${v.unit}`}
+              {v.yearValue !== null ? (
+                <span style={{ color: 'var(--text-faint)', fontSize: 11 }}>
+                  {' '}
+                  · Jahr {v.yearValue} {v.unit}
+                </span>
+              ) : null}
+            </ValueRow>
+          ))}
+          <p className="loading-shimmer" style={{ marginBottom: 0 }}>
+            Vieljährige Mittel der Referenzperiode — statistische Referenz zum Einordnen des
+            aktuellen Wetters, kein aktueller Zustand.
+          </p>
+        </div>
+      ) : null}
+      {q.data ? (
+        <div style={{ marginTop: 8 }}>
+          <InspectButton
+            title="Klimanormalwerte 1991–2020 (DWD CDC)"
+            evidence={q.data.evidence}
+            limitations={q.data.limitations}
+          />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function FuelModule() {
+  const { selectedPlace, demoMode } = useAppStore();
+  const q = useFuel(selectedPlace, demoMode);
+  const data = q.data?.data;
+
+  return (
+    <div className="card">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <strong>Kraftstoffpreise</strong>
+        {q.data ? <StatusPill status={q.data.status} /> : null}
+      </div>
+      {q.isLoading ? <LoadingNote /> : null}
+      {q.data && (!data || data.stations.length === 0) ? (
+        <ModuleStatusNote status={q.data.status} detail={q.data.statusDetail} />
+      ) : null}
+      {data && data.stations.length > 0 ? (
+        <div style={{ marginTop: 8 }}>
+          {data.stations.slice(0, 4).map((s) => (
+            <div key={s.id} style={{ marginBottom: 6 }}>
+              <div style={{ fontSize: 12 }}>
+                <strong>{s.brand ?? s.name ?? 'Tankstelle'}</strong>{' '}
+                <span style={{ color: 'var(--text-faint)', fontSize: 11 }}>
+                  · {formatDistanceGerman(s.distanceMeters)}
+                  {s.isOpen === false ? ' · geschlossen' : ''}
+                </span>
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-dim)', paddingLeft: 8 }}>
+                {s.e5 !== null ? `E5 ${s.e5.toFixed(3)} € ` : ''}
+                {s.e10 !== null ? `· E10 ${s.e10.toFixed(3)} € ` : ''}
+                {s.diesel !== null ? `· Diesel ${s.diesel.toFixed(3)} €` : ''}
+              </div>
+            </div>
+          ))}
+          <p className="loading-shimmer" style={{ marginBottom: 0 }}>
+            Von Betreibern an die MTS-K gemeldete Preise — geringe Verzögerungen möglich.
+          </p>
+        </div>
+      ) : null}
+      {q.data ? (
+        <div style={{ marginTop: 8 }}>
+          <InspectButton
+            title="Kraftstoffpreise (MTS-K / Tankerkönig)"
+            evidence={q.data.evidence}
+            limitations={q.data.limitations}
+          />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+const FACILITY_TYPE_LABEL: Record<string, string> = {
+  ELEVATOR: 'Aufzug',
+  ESCALATOR: 'Fahrtreppe',
+};
+
+const FACILITY_STATE_LABEL: Record<string, string> = {
+  ACTIVE: 'in Betrieb',
+  INACTIVE: 'außer Betrieb',
+  UNKNOWN: 'Zustand nicht ermittelbar',
+};
+
+function StationFacilitiesModule() {
+  const { selectedPlace, demoMode } = useAppStore();
+  const q = useStationFacilities(selectedPlace, demoMode);
+  const data = q.data?.data;
+
+  return (
+    <div className="card">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <strong>Bahnhofs-Aufzüge (DB)</strong>
+        {q.data ? <StatusPill status={q.data.status} /> : null}
+      </div>
+      {q.isLoading ? <LoadingNote /> : null}
+      {q.data && (!data || data.facilities.length === 0) ? (
+        <ModuleStatusNote status={q.data.status} detail={q.data.statusDetail} />
+      ) : null}
+      {data && data.facilities.length > 0 ? (
+        <div style={{ marginTop: 8 }}>
+          {data.facilities.slice(0, 6).map((f) => (
+            <ValueRow key={f.id} label={FACILITY_TYPE_LABEL[f.type] ?? f.type} na={false}>
+              {FACILITY_STATE_LABEL[f.state] ?? f.state}{' '}
+              <span style={{ color: 'var(--text-faint)', fontSize: 11 }}>
+                · {formatDistanceGerman(f.distanceMeters)}
+                {f.description ? ` · ${f.description}` : ''}
+              </span>
+            </ValueRow>
+          ))}
+          <p className="loading-shimmer" style={{ marginBottom: 0 }}>
+            DB-Stationen im Umkreis — „Zustand nicht ermittelbar“ heißt nicht „funktioniert“.
+          </p>
+        </div>
+      ) : null}
+      {q.data ? (
+        <div style={{ marginTop: 8 }}>
+          <InspectButton
+            title="Bahnhofs-Aufzüge & Fahrtreppen (DB FaSta)"
+            evidence={q.data.evidence}
+            limitations={q.data.limitations}
+          />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function PlaceLens() {
   const selectedPlace = useAppStore((s) => s.selectedPlace);
 
@@ -645,13 +995,19 @@ export function PlaceLens() {
           </div>
           <WeatherModule />
           <WarningsModule />
+          <CivilWarningsModule />
           <RadarModule />
+          <ClimateNormalsModule />
           <AirModule />
           <AirModelModule />
           <PollenModule />
           <UvModule />
           <WaterModule />
           <RadiationModule />
+          <QuakesModule />
+          <AutobahnModule />
+          <FuelModule />
+          <StationFacilitiesModule />
           <TransitModule />
         </>
       )}

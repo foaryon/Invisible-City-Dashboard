@@ -14,7 +14,8 @@ ownership of weather, air-quality, transit or municipal data. Every material val
 its source, time, data mode, spatial meaning and limitations. **A visible limitation is a
 successful product outcome.**
 
-**Status:** V1.1 — 14 providers integrated, all fully automatic. Full quality gate green — **180+ Vitest** tests
+**Status:** V1.2 — 21 providers integrated, all fully automatic (keyless or
+auto-activating from env credentials). Full quality gate green — **200 Vitest** tests
 (unit · component · integration · governance · non-functional) and **12 Playwright** E2E
 (including accessibility). Runs as a single deployable; every provider is real,
 config-driven code.
@@ -40,12 +41,22 @@ config-driven code.
 | Gamma dose rate (radiation) | BfS ODL network (~1,700 probes) | observed | live (keyless) |
 | Pollen hazard index | DWD (per forecast partregion) | forecast | live (keyless) |
 | UV index | DWD (reference locations) | forecast | live (keyless) |
+| Civil-protection warnings | BBK NINA (district ARS via BKG VG250) | observed | live (keyless) |
+| Official territorial assignment | BKG VG250 WFS (Gemeinde + ARS) | mapped | live (keyless) |
+| Autobahn events | Autobahn GmbH (motorway network only) | observed | live (keyless) |
+| Earthquakes | GFZ GEOFON (FDSN, 200 km / 90 days) | observed | live (keyless) |
+| Climate normals 1991–2020 | DWD CDC (nearest climate station) | observed (statistical reference) | live (keyless) |
+| Fuel prices | MTS-K via Tankerkönig | realtime (operator-notified) | live when `TANKERKOENIG_API_KEY` set |
+| Station elevators/escalators | DB FaSta (DB API Marketplace) | realtime | live when `DB_CLIENT_ID`+`DB_API_KEY` set |
 
 **Every adapter is real, config-driven code.** Keyless providers are live out of the box.
-CAMS and DELFI are fully implemented but need a credential/feed (a Copernicus key, an
-opendata-oepnv registration or feed URL) — until that is configured the UI reports
+CAMS, DELFI, Tankerkönig and DB FaSta are fully implemented but need a credential/feed (a
+Copernicus key, an opendata-oepnv registration or feed URL, a free Tankerkönig key, free
+DB API Marketplace credentials) — until that is configured the UI reports
 **"Konfiguration erforderlich"** with the exact env var needed. It is **never** faked,
 never a placeholder, never demo. Query `/api/readiness` for per-provider live status.
+Vetted-but-unverified candidates (e.g. BVL Lebensmittelwarnung) are registered in the
+manifest as `proposed` with a hard-off gate — see `docs/data-sources.md`.
 
 **On greenhouse gases:** deliberately NOT integrated. Aggregated national GHG inventories
 have no honest spatial relation to a map pin (annual, coarse, 1–2 y lag), and the only

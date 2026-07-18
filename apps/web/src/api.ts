@@ -19,6 +19,12 @@ import {
   type PollenContext,
   type UvContext,
   type RadarContext,
+  type CivilWarningContext,
+  type AutobahnContext,
+  type SeismicContext,
+  type ClimateNormalsContext,
+  type FuelContext,
+  type StationFacilityContext,
 } from '@invisible-city/contracts';
 
 export interface ReadinessProvider {
@@ -86,6 +92,27 @@ export const api = {
     getJson<ModuleEnvelope<UvContext>>('/api/uv', { ...coordParams(c), demo }),
   radar: (c: Coordinates, demo: boolean) =>
     getJson<ModuleEnvelope<RadarContext>>('/api/radar', { ...coordParams(c), demo }),
+  civilWarnings: (c: Coordinates, demo: boolean) =>
+    getJson<ModuleEnvelope<CivilWarningContext>>('/api/civil-warnings', {
+      ...coordParams(c),
+      demo,
+    }),
+  autobahn: (c: Coordinates, demo: boolean) =>
+    getJson<ModuleEnvelope<AutobahnContext>>('/api/autobahn', { ...coordParams(c), demo }),
+  quakes: (c: Coordinates, demo: boolean) =>
+    getJson<ModuleEnvelope<SeismicContext>>('/api/quakes', { ...coordParams(c), demo }),
+  climateNormals: (c: Coordinates, demo: boolean) =>
+    getJson<ModuleEnvelope<ClimateNormalsContext>>('/api/climate-normals', {
+      ...coordParams(c),
+      demo,
+    }),
+  fuel: (c: Coordinates, demo: boolean) =>
+    getJson<ModuleEnvelope<FuelContext>>('/api/fuel', { ...coordParams(c), demo }),
+  stationFacilities: (c: Coordinates, demo: boolean) =>
+    getJson<ModuleEnvelope<StationFacilityContext>>('/api/station-facilities', {
+      ...coordParams(c),
+      demo,
+    }),
   providers: () =>
     getJson<{ manifestVersion: string; providers: ProviderManifestEntry[] }>('/api/providers', {}),
   readiness: () => getJson<Readiness>('/api/readiness', {}),

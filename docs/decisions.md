@@ -2,6 +2,23 @@
 
 Records notable decisions and **pinned dependency versions**. Newest first.
 
+## 2026-07-18 — Tier-1/Tier-2 expansion (all fully automatic)
+
+- **Decision:** seven new providers, every one either keyless-live or auto-activating from
+  env credentials — consistent with the "no manual downloads" rule: NINA civil-protection
+  warnings (BBK, per district-ARS), BKG VG250 official territorial assignment (supplies
+  the ARS; dual evidence on the NINA module), Autobahn GmbH events (per-motorway API
+  aggregated into one nationally shared cached snapshot, distance-filtered), GFZ GEOFON
+  earthquakes (FDSN `format=text`; empty = honest normal outcome), DWD CDC climate normals
+  1991–2020 (statistical reference next to live weather — combine, never fuse), and two
+  key-gated modules mirroring the CAMS pattern: Tankerkönig/MTS-K fuel prices
+  (TANKERKOENIG_API_KEY) and DB FaSta elevator status (DB_CLIENT_ID + DB_API_KEY).
+- **Candidates register:** BVL Lebensmittelwarnung is manifest-`proposed` with a hard-off
+  activation gate until its documented interface's auth semantics are verified live;
+  DB Timetables/RIS and SMARD (national context only) are documented as vetted candidates.
+- **New plumbing:** `fetchTextWithCache` (documented plain-text interfaces: FDSN text, CDC
+  tables, latin1 support) alongside the JSON runner.
+
 ## 2026-07-17 — Thru.de/PRTR removed: no manual-download dependencies
 
 - **Decision:** every live module must be fully automatic — a provider whose only data

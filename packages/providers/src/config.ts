@@ -21,6 +21,26 @@ export interface ProviderConfig {
   odlUrl: string;
   /** DWD open-data health alerts base (pollen s31fg.json, UV uvi.json). */
   dwdHealthUrl: string;
+  /** NINA civil-protection warnings API base (BBK, bund.dev-documented). */
+  ninaUrl: string;
+  /** BKG VG250 WFS (official territorial assignment, ARS). */
+  bkgWfsUrl: string;
+  /** Autobahn GmbH traffic API base (bund.dev-documented). */
+  autobahnUrl: string;
+  /** GFZ GEOFON FDSN event web service base. */
+  geofonUrl: string;
+  /** DWD CDC multi-annual climate normals (1991–2020) base. */
+  dwdCdcNormalsUrl: string;
+
+  // Tankerkönig fuel prices (official MTS-K data) — requires a free API key.
+  tankerkoenigUrl: string;
+  tankerkoenigApiKey?: string;
+
+  // DB FaSta station facilities (elevator/escalator status) — requires free
+  // DB API Marketplace credentials.
+  dbFastaUrl: string;
+  dbClientId?: string;
+  dbApiKey?: string;
 
   // CAMS regional air-quality model (Copernicus ADS/CDS) — requires an API key.
   camsApiUrl: string;
@@ -69,11 +89,32 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ProviderConfig
       'https://opendata.dwd.de/climate_environment/health/alerts',
     ),
     camsApiUrl: str(env, 'CAMS_ADS_URL', 'https://ads.atmosphere.copernicus.eu/api'),
+    ninaUrl: str(env, 'NINA_URL', 'https://warnung.bund.de/api31'),
+    bkgWfsUrl: str(env, 'BKG_WFS_URL', 'https://sgx.geodatenzentrum.de/wfs_vg250'),
+    autobahnUrl: str(env, 'AUTOBAHN_URL', 'https://verkehr.autobahn.de/o/autobahn'),
+    geofonUrl: str(env, 'GEOFON_URL', 'https://geofon.gfz-potsdam.de/fdsnws/event/1'),
+    dwdCdcNormalsUrl: str(
+      env,
+      'DWD_CDC_NORMALS_URL',
+      'https://opendata.dwd.de/climate_environment/CDC/observations_germany/climate/multi_annual/mean_91-20',
+    ),
+    tankerkoenigUrl: str(env, 'TANKERKOENIG_URL', 'https://creativecommons.tankerkoenig.de/json'),
+    dbFastaUrl: str(
+      env,
+      'DB_FASTA_URL',
+      'https://apis.deutschebahn.com/db-api-marketplace/apis/fasta/v2',
+    ),
     gtfsDbPath: str(env, 'GTFS_DB', 'var/gtfs.sqlite'),
     enableDemo: env['ENABLE_DEMO'] === '1' || env['ENABLE_DEMO'] === 'true',
   };
   const camsApiKey = optional(env, 'CAMS_ADS_KEY');
   if (camsApiKey) config.camsApiKey = camsApiKey;
+  const tankerkoenigApiKey = optional(env, 'TANKERKOENIG_API_KEY');
+  if (tankerkoenigApiKey) config.tankerkoenigApiKey = tankerkoenigApiKey;
+  const dbClientId = optional(env, 'DB_CLIENT_ID');
+  if (dbClientId) config.dbClientId = dbClientId;
+  const dbApiKey = optional(env, 'DB_API_KEY');
+  if (dbApiKey) config.dbApiKey = dbApiKey;
   const gtfsStaticPath = optional(env, 'GTFS_STATIC_PATH');
   if (gtfsStaticPath) config.gtfsStaticPath = gtfsStaticPath;
   const gtfsStaticUrl = optional(env, 'GTFS_STATIC_URL');
@@ -93,6 +134,10 @@ const ACTIVATION: Record<string, (c: ProviderConfig) => boolean> = {
   'cams-eu-airquality': (c) => !!c.camsApiKey,
   'delfi-gtfs': (c) => !!(c.gtfsStaticPath || c.gtfsStaticUrl),
   'delfi-gtfs-rt': (c) => !!c.gtfsRtUrl,
+  'tankerkoenig-mtsk': (c) => !!c.tankerkoenigApiKey,
+  'db-fasta': (c) => !!(c.dbClientId && c.dbApiKey),
+  // Vetted candidate, NOT integrated yet (auth semantics need live verification).
+  'bvl-lebensmittelwarnung': () => false,
 };
 
 export function isConfigured(providerId: string, config: ProviderConfig): boolean {
@@ -105,6 +150,9 @@ export const REQUIRED_ENV: Record<string, string[]> = {
   'cams-eu-airquality': ['CAMS_ADS_KEY'],
   'delfi-gtfs': ['GTFS_STATIC_PATH or GTFS_STATIC_URL'],
   'delfi-gtfs-rt': ['GTFS_RT_URL'],
+  'tankerkoenig-mtsk': ['TANKERKOENIG_API_KEY'],
+  'db-fasta': ['DB_CLIENT_ID', 'DB_API_KEY'],
+  'bvl-lebensmittelwarnung': ['(Kandidat — noch nicht integriert)'],
 };
 
 /** Config with all public defaults and demo enabled — used by the demo runtime and tests. */
