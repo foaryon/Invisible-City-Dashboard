@@ -12,7 +12,6 @@
  */
 import { readFileSync } from 'node:fs';
 import AdmZip from 'adm-zip';
-import { parse } from 'csv-parse/sync';
 import { openSqlite, type SqliteDb } from '../sqlite.js';
 
 export interface GtfsImportResult {
@@ -29,17 +28,101 @@ export interface GtfsImportResult {
 
 type Row = Record<string, string>;
 
-function readTable(zip: AdmZip, name: string): Row[] {
+/**
+ * Parse ONE RFC-4180 CSV record into fields (quotes, embedded commas, doubled
+ * quote escapes). Embedded newlines are handled by the caller via
+ * `hasOpenQuote` line joining.
+ */
+export function parseCsvRecord(record: string): string[] {
+  const fields: string[] = [];
+  let field = '';
+  let inQuotes = false;
+  for (let i = 0; i < record.length; i++) {
+    const ch = record[i]!;
+    if (inQuotes) {
+      if (ch === '"') {
+        if (record[i + 1] === '"') {
+          field += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        field += ch;
+      }
+    } else if (ch === '"') {
+      inQuotes = true;
+    } else if (ch === ',') {
+      fields.push(field);
+      field = '';
+    } else {
+      field += ch;
+    }
+  }
+  fields.push(field);
+  return fields;
+}
+
+/** True while a record continues on the next line (odd number of quotes so far). */
+function hasOpenQuote(s: string): boolean {
+  let quotes = 0;
+  for (let i = 0; i < s.length; i++) if (s[i] === '"') quotes++;
+  return quotes % 2 === 1;
+}
+
+/**
+ * Iterate the CSV rows of a zip entry WITHOUT materializing the whole table.
+ *
+ * The nationwide GTFS feed's `stop_times.txt` exceeds Node's maximum string
+ * length (~512 MB) when decoded at once — `getData().toString()` threw
+ * "Cannot create a string longer than 0x1fffffe8 characters", and a sync CSV
+ * parse would additionally materialize millions of row objects. Lines are
+ * therefore decoded individually from the decompressed buffer (constant
+ * memory beyond the buffer itself); quoted embedded newlines are joined.
+ */
+function* iterateTable(zip: AdmZip, name: string): Generator<Row> {
   const entry = zip.getEntry(name);
-  if (!entry) return [];
-  const text = entry.getData().toString('utf8');
-  return parse(text, {
-    columns: true,
-    skip_empty_lines: true,
-    bom: true,
-    relax_column_count: true,
-    trim: true,
-  }) as Row[];
+  if (!entry) return;
+  const buf = entry.getData();
+  let pos = 0;
+  const nextLine = (): string | null => {
+    if (pos >= buf.length) return null;
+    let nl = buf.indexOf(0x0a, pos);
+    if (nl === -1) nl = buf.length;
+    let end = nl;
+    if (end > pos && buf[end - 1] === 0x0d) end--; // CRLF
+    const line = buf.toString('utf8', pos, end);
+    pos = nl + 1;
+    return line;
+  };
+  const nextRecord = (): string | null => {
+    let record = nextLine();
+    if (record === null) return null;
+    // RFC 4180: a quoted field may contain a line break — join until balanced.
+    while (hasOpenQuote(record)) {
+      const cont = nextLine();
+      if (cont === null) break;
+      record += '\n' + cont;
+    }
+    return record;
+  };
+  let headerLine = nextRecord();
+  if (headerLine === null) return;
+  if (headerLine.charCodeAt(0) === 0xfeff) headerLine = headerLine.slice(1); // BOM
+  const header = parseCsvRecord(headerLine).map((h) => h.trim());
+  let record: string | null;
+  while ((record = nextRecord()) !== null) {
+    if (record.length === 0) continue;
+    const cols = parseCsvRecord(record);
+    const row: Row = {};
+    for (let i = 0; i < header.length; i++) row[header[i]!] = (cols[i] ?? '').trim();
+    yield row;
+  }
+}
+
+/** Small tables (feed_info) — convenience array form of iterateTable. */
+function readTable(zip: AdmZip, name: string): Row[] {
+  return [...iterateTable(zip, name)];
 }
 
 function createSchema(db: SqliteDb): void {
@@ -117,14 +200,14 @@ export function importGtfs(source: string | Buffer, dbPath: string): GtfsImportR
   const counts = { stops: 0, routes: 0, trips: 0, stopTimes: 0 };
 
   db.transaction(() => {
-    for (const r of readTable(zip, 'stops.txt')) {
+    for (const r of iterateTable(zip, 'stops.txt')) {
       const lat = Number(r['stop_lat']);
       const lon = Number(r['stop_lon']);
       if (!r['stop_id'] || !Number.isFinite(lat) || !Number.isFinite(lon)) continue;
       insertStop.run(r['stop_id'], r['stop_name'] ?? '', lat, lon);
       counts.stops++;
     }
-    for (const r of readTable(zip, 'routes.txt')) {
+    for (const r of iterateTable(zip, 'routes.txt')) {
       if (!r['route_id']) continue;
       insertRoute.run(
         r['route_id'],
@@ -134,7 +217,7 @@ export function importGtfs(source: string | Buffer, dbPath: string): GtfsImportR
       );
       counts.routes++;
     }
-    for (const r of readTable(zip, 'trips.txt')) {
+    for (const r of iterateTable(zip, 'trips.txt')) {
       if (!r['trip_id']) continue;
       insertTrip.run(
         r['trip_id'],
@@ -144,7 +227,7 @@ export function importGtfs(source: string | Buffer, dbPath: string): GtfsImportR
       );
       counts.trips++;
     }
-    for (const r of readTable(zip, 'stop_times.txt')) {
+    for (const r of iterateTable(zip, 'stop_times.txt')) {
       if (!r['trip_id'] || !r['stop_id']) continue;
       const dep = r['departure_time'] ?? '';
       insertStopTime.run(
@@ -156,7 +239,7 @@ export function importGtfs(source: string | Buffer, dbPath: string): GtfsImportR
       );
       counts.stopTimes++;
     }
-    for (const r of readTable(zip, 'calendar.txt')) {
+    for (const r of iterateTable(zip, 'calendar.txt')) {
       if (!r['service_id']) continue;
       insertCalendar.run(
         r['service_id'],
@@ -171,7 +254,7 @@ export function importGtfs(source: string | Buffer, dbPath: string): GtfsImportR
         r['end_date'] ?? '',
       );
     }
-    for (const r of readTable(zip, 'calendar_dates.txt')) {
+    for (const r of iterateTable(zip, 'calendar_dates.txt')) {
       if (!r['service_id'] || !r['date']) continue;
       insertCalDate.run(r['service_id'], r['date'], Number(r['exception_type'] ?? 0));
     }

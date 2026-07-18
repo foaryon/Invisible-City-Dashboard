@@ -5,6 +5,18 @@ import { fileURLToPath } from 'node:url';
 import { buildServer } from './server.js';
 import { openBrowser } from './open-browser.js';
 
+// Load the repo's .env for LOCAL runs (Docker passes --env-file instead).
+// Workspace scripts run with cwd apps/api, so search upward to the repo root.
+// Node's loadEnvFile never overrides variables already set in the environment.
+for (const candidate of ['.env', '../.env', '../../.env']) {
+  try {
+    process.loadEnvFile(candidate);
+    break;
+  } catch {
+    // not here — keep searching; running without a .env is fine
+  }
+}
+
 /** LAN IPv4 addresses (so a phone on the same Wi-Fi knows where to connect). */
 function lanAddresses(): string[] {
   const out: string[] = [];

@@ -7,10 +7,13 @@ coverage · blocked source issues · next smallest shippable slice.
 
 **Live out of the box (keyless):** `dwd-brightsky`, `dwd-warnings`, `uba-airdata`,
 `osm-overpass`, `photon-geocoding`, `openfreemap-basemap`.
-**Integrated, live once configured:** `cams-eu-airquality` (`CAMS_ADS_KEY`), `delfi-gtfs`
-(`GTFS_STATIC_PATH`), `delfi-gtfs-rt` (`GTFS_RT_URL`). Until configured they return
-`configuration-required` (honest, never demo). Status is config-resolved at runtime; see
-`/api/readiness`.
+**Live on this machine since 2026-07-18:** `delfi-gtfs` — nationwide gtfs.de/DELFI feed
+imported (668 318 stops, 1.66 M trips, 33.6 M stop_times); scheduled departures
+confirmed end-to-end (Berlin M4/100/200 incl. >24 h night services).
+**Integrated, live once configured:** `cams-eu-airquality` (`CAMS_ADS_KEY`),
+`delfi-gtfs-rt` (`GTFS_RT_URL`), `tankerkoenig-mtsk`, `db-fasta`. Until configured they
+return `configuration-required` (honest, never demo). Status is config-resolved at
+runtime; see `/api/readiness`.
 
 ## Blocked source issues
 
@@ -123,6 +126,20 @@ coverage · blocked source issues · next smallest shippable slice.
 - **Gap/next:** under repeated full-sweep load both public Overpass instances still
   time out sporadically (environmental; the app serves its visibly-labelled 6-h cache
   then) — self-hosting remains the fix for sustained/bulk use.
+
+## Stage 9 — GTFS nationwide activation & config wiring ✅ (2026-07-18, same day)
+- **Fixed:** the GTFS importer crashed on the nationwide feed (`stop_times.txt` >
+  Node's 512 MB string limit) — replaced whole-file string decoding + sync CSV parse
+  with a streaming per-line RFC-4180 parser on the decompressed buffer (quotes,
+  doubled quotes, embedded newlines, BOM, CRLF; `csv-parse` dependency removed);
+  2 regression tests. And: nothing loaded `.env` for LOCAL runs (only Docker's
+  `--env-file`) — the API entry now loads the repo `.env` (existing env wins).
+- **Activated:** gtfs.de „Germany free" feed (DELFI aggregate, CC BY 4.0) imported —
+  668 318 stops · 23 108 routes · 1 656 018 trips · 33 601 848 stop_times → transit
+  module `ok`/`confirmed` with real scheduled departures nationwide.
+- **New docs:** `spatial-contract.md`, `qa-report.md`, `providers-db-tankerkoenig.md`,
+  `qa-checklist.md`; browser suite `/diagnose.html` (11 workflow assertions + module
+  matrix incl. edge locations).
 
 ## Next smallest shippable slice
 

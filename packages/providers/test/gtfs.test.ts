@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import AdmZip from 'adm-zip';
 import GtfsRealtimeBindings from 'gtfs-realtime-bindings';
-import { importGtfs, gtfsTimeToSeconds } from '../src/gtfs/import.js';
+import { importGtfs, gtfsTimeToSeconds, parseCsvRecord } from '../src/gtfs/import.js';
 import { GtfsStore, routeTypeLabel } from '../src/gtfs/query.js';
 import { summarizeRealtime } from '../src/gtfs/realtime.js';
 
@@ -47,6 +47,42 @@ describe('GTFS time parsing', () => {
     expect(gtfsTimeToSeconds('08:05:00')).toBe(29100);
     expect(gtfsTimeToSeconds('25:30:00')).toBe(91800);
     expect(gtfsTimeToSeconds('nope')).toBeNull();
+  });
+});
+
+describe('streaming CSV parsing (512-MB-string regression, nationwide feed)', () => {
+  it('parseCsvRecord handles quotes, embedded commas and doubled quotes', () => {
+    expect(parseCsvRecord('a,b,c')).toEqual(['a', 'b', 'c']);
+    expect(parseCsvRecord('S1,"Bonn, Hbf",7.1')).toEqual(['S1', 'Bonn, Hbf', '7.1']);
+    expect(parseCsvRecord('x,"say ""hi""",y')).toEqual(['x', 'say "hi"', 'y']);
+    expect(parseCsvRecord('a,,c')).toEqual(['a', '', 'c']);
+  });
+
+  it('imports quoted names with commas/newlines, BOM and CRLF line endings', () => {
+    const zip = new AdmZip();
+    const add = (name: string, content: string) => zip.addFile(name, Buffer.from(content, 'utf8'));
+    // BOM + CRLF + quoted comma + quoted embedded newline (RFC 4180).
+    add(
+      'stops.txt',
+      '﻿stop_id,stop_name,stop_lat,stop_lon\r\n' +
+        'Q1,"Platz, mit Komma",50.10000,8.60000\r\n' +
+        'Q2,"Zwei\nZeilen",50.20000,8.70000\r\n',
+    );
+    add('routes.txt', 'route_id,route_short_name,route_long_name,route_type\n');
+    add('trips.txt', 'route_id,service_id,trip_id,trip_headsign\n');
+    add('stop_times.txt', 'trip_id,arrival_time,departure_time,stop_id,stop_sequence\n');
+    add(
+      'calendar.txt',
+      'service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n',
+    );
+    add('calendar_dates.txt', 'service_id,date,exception_type\n');
+    const dbPath = join(tmp, 'quoted.sqlite');
+    const result = importGtfs(zip.toBuffer(), dbPath);
+    expect(result.stops).toBe(2);
+    const store = new GtfsStore(dbPath);
+    const near = store.nearestStops({ latitude: 50.1, longitude: 8.6 }, 500, 5);
+    expect(near[0]!.name).toBe('Platz, mit Komma');
+    store.close();
   });
 });
 
