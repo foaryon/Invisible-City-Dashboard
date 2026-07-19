@@ -21,6 +21,10 @@ test('no critical or serious accessibility violations (demo mode)', async ({ pag
   // The search dropdown closes on selection (and stays closed — no re-search).
   await expect(page.getByRole('option')).toHaveCount(0);
 
+  // Open the collapsed "Weitere Kontexte" tier so context cards are in the
+  // scanned DOM too (the disclosure itself is part of the scan either way).
+  await page.getByRole('button', { name: /Weitere Kontexte/ }).click();
+
   const results = await new AxeBuilder({ page })
     .exclude('.map-column')
     .withTags(['wcag2a', 'wcag2aa'])

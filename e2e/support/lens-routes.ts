@@ -82,14 +82,16 @@ export async function stubMapTiles(page: Page): Promise<void> {
 
 /**
  * Scope a locator to one Place Lens module card by its German title.
- * Single seam for the tiered-lens refactor: once cards become named regions,
- * this switches to getByRole('region', { name: title }).
+ * Cards are named regions since the tiered-lens refactor (ModuleCard renders
+ * <section aria-labelledby> with the h3 title).
  */
 export function moduleCard(page: Page, title: string) {
-  return page
-    .getByRole('region', { name: 'Place Lens' })
-    .locator('.card')
-    .filter({ has: page.getByText(title, { exact: true }) });
+  return page.getByRole('region', { name: title, exact: true });
+}
+
+/** Open the collapsed "Weitere Kontexte" tier (context modules render inside). */
+export async function openContextSection(page: Page) {
+  await page.getByRole('button', { name: /Weitere Kontexte/ }).click();
 }
 
 /** Search-driven selection of the canonical Berlin fixture (mirrors app.spec.ts). */

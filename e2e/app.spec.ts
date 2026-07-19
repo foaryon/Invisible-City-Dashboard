@@ -43,6 +43,35 @@ test('search selects a German place and populates the Place Lens', async ({ page
   await expect(lens.getByText('Demo').first()).toBeVisible();
 });
 
+test('tiered lens: context modules collapse; noteworthy demo data auto-promotes [tiering 2026-07-19]', async ({
+  page,
+}) => {
+  await enableDemo(page);
+  await selectBerlin(page);
+  const lens = page.getByRole('region', { name: 'Place Lens' });
+
+  // Demo fixtures carry 1 NINA alert, 1 Autobahn event, quake catalogue entries
+  // and pollen index "2" — these context modules auto-promote to visible cards.
+  await expect(lens.getByRole('region', { name: 'Zivilschutz (NINA)' })).toBeVisible();
+  await expect(lens.getByRole('region', { name: 'Autobahn-Verkehrslage' })).toBeVisible();
+  await expect(lens.getByRole('region', { name: 'Erdbeben (GEOFON)' })).toBeVisible();
+  await expect(lens.getByRole('region', { name: 'Pollenflug' })).toBeVisible();
+  await expect(lens.locator('.badge-active').first()).toBeVisible();
+
+  // Never-noteworthy context modules stay collapsed until the disclosure opens.
+  const toggle = lens.getByRole('button', { name: /Weitere Kontexte/ });
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(lens.getByText('Klimanormalwerte', { exact: true })).not.toBeVisible();
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(lens.getByText('Klimanormalwerte', { exact: true })).toBeVisible();
+  await expect(lens.getByText('Wasserstände (Pegel)', { exact: true })).toBeVisible();
+
+  // A collapsed row expands into the full module card on demand.
+  await lens.getByRole('button', { name: 'Details: Klimanormalwerte' }).click();
+  await expect(lens.getByRole('region', { name: 'Klimanormalwerte' })).toBeVisible();
+});
+
 test('search results exclude non-German places (Paris filtered out)', async ({ page }) => {
   await enableDemo(page);
   const search = page.getByRole('combobox', { name: /Ort, Adresse/ });

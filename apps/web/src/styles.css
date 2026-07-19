@@ -270,6 +270,112 @@ a {
   font-weight: 700;
 }
 
+/* ---- Module cards (shared scaffold) ---- */
+.card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.card-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0;
+}
+.card-head-side {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.badge-active {
+  border-color: color-mix(in srgb, var(--warn) 45%, transparent) !important;
+  color: var(--warn);
+}
+
+/* ---- "Weitere Kontexte" (collapsed context tier) ---- */
+.context-section {
+  margin-top: 4px;
+}
+.context-heading {
+  margin: 0;
+}
+.context-toggle {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 8px 10px;
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.context-toggle:hover {
+  background: var(--bg-panel-2);
+}
+.context-toggle .chevron {
+  color: var(--text-dim);
+}
+.context-item {
+  border-bottom: 1px solid var(--border);
+}
+.context-item:last-child {
+  border-bottom: none;
+}
+.context-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, auto) max-content 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 2px;
+  min-width: 0;
+}
+.context-row-toggle {
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  min-width: 28px;
+  min-height: 28px;
+  cursor: pointer;
+}
+.context-row-toggle:hover {
+  background: var(--bg-panel-2);
+}
+.context-row-title {
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.context-summary {
+  font-size: 11px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+/* ---- Compact configuration hint (unconfigured key-gated modules) ---- */
+.config-hint .config-hint-text {
+  margin: 6px 0 0;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+@media (max-width: 900px) {
+  /* Long German summaries wrap in the bottom sheet instead of ellipsizing away. */
+  .context-summary {
+    white-space: normal;
+  }
+}
+
 /* ---- Demo banner ---- */
 .demo-banner {
   background: repeating-linear-gradient(
