@@ -1,9 +1,12 @@
 # Test Data & Fixture Policy — The Invisible City
 
 ```yaml
-policy_version: 1.0.0
+policy_version: 1.1.0
 date: 2026-07-19
 companion: MASTERPROMPT_REQUIREMENTS.md · MASTERPROMPT_TEST_MATRIX.yaml · TEST_GOVERNANCE.md
+amendments:
+  - 1.1.0 (2026-07-19): §3 adds the degraded-state E2E lane (Playwright route interception
+    serving contract-validated envelopes; no request leaves the browser; demo off).
 ```
 
 Binding rules for every fixture, stub, reference location and credential that test code,
@@ -61,7 +64,8 @@ documentation or the diagnose harness touches. Violations are governance finding
 | --- | --- | --- |
 | Unit / integration (Vitest) | **None.** Stubs/fixtures/failure injection only. | The full gate must stay green in an egress-blocked environment (DOC-TEST-01); honest-failure behaviour is itself under test. |
 | Component (jsdom) | **None.** Mocked API + real store. | Determinism. |
-| E2E (Playwright) | **Demo mode only** — the product API serves the demo fixture set; the only external fetch permitted is base-map tiles, and specs must not assert on tile content. | Deterministic offline UI truth (MP-11-03). |
+| E2E (Playwright), demo lane | **Demo mode only** — the product API serves the demo fixture set; the only external fetch permitted is base-map tiles, and specs must not assert on tile content. | Deterministic offline UI truth (MP-11-03). |
+| E2E (Playwright), degraded-state lane | **Route interception only** — Playwright serves contract-validated `ModuleEnvelope` fixtures (`e2e/support/envelope-fixtures.ts`, every fixture `.parse`d through the real Zod contract); map hosts stubbed/aborted; `serviceWorkers: 'block'`; demo mode OFF and every envelope `demo:false`. No request leaves the browser. | The honest non-ok states (unavailable/partial/stale/source-error/configuration-required) never occur in demo mode, yet their rendering is a P1 requirement (MP-3.1.J-01/02); this lane exercises them without adding any fake-data path to production code and without mixing demo and live. |
 | Live verification | **Diagnose harness only** (`npm run diagnose`, `/diagnose.html`). | The single sanctioned live path (GD-TEST-01, DEV-17); its findings are triaged per AMB-03 (environmental vs product defect), never auto-gate CI. |
 
 A CI-gating test that opens a socket to a provider host is a policy violation regardless of

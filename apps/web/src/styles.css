@@ -251,11 +251,16 @@ a {
   color: var(--accent);
   border-color: color-mix(in srgb, var(--accent) 40%, transparent);
 }
+/* Honest absence stays NEUTRAL (§8.4: missing coverage is not a failure) … */
 .status-pill[data-state='unavailable'],
-.status-pill[data-state='source-error'],
 .status-pill[data-state='not-integrated'],
 .status-pill[data-state='configuration-required'] {
   color: var(--text-dim);
+}
+/* … while a source failure is visually distinct from absence (§4.1, GD-TRUTH-02). */
+.status-pill[data-state='source-error'] {
+  color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 40%, transparent);
 }
 .status-pill[data-state='demo'] {
   color: var(--demo);
