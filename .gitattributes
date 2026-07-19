@@ -1,0 +1,12 @@
+# Byte-exact checkout for sha256-pinned compliance sources and artifacts.
+# These files' hashes are pinned (source register in MASTERPROMPT_REQUIREMENTS.md,
+# requirements_doc_sha256 in MASTERPROMPT_TEST_MATRIX.yaml, targets.* in evidence
+# manifests). EOL conversion on checkout would silently break every pin, so Git
+# must never touch their line endings (-text = no conversion, ever).
+docs/MASTERPROMPT.md -text
+compliance-sources/** -text
+MASTERPROMPT_REQUIREMENTS.md -text
+MASTERPROMPT_TEST_MATRIX.yaml -text
+TEST_EVIDENCE_MANIFEST.schema.json -text
+TEST_DATA_AND_FIXTURE_POLICY.md -text
+TEST_GOVERNANCE.md -text

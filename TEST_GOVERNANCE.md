@@ -35,6 +35,9 @@ immutable: a source file edit requires re-pinning plus an extraction re-audit no
 - Diff-detect ID deletions: an ID present in the previous release's doc must exist in the
   current doc (possibly superseded); fail on silent disappearance.
 - Verify `MASTERPROMPT_TEST_MATRIX.yaml` `requirements_doc_sha256` matches the actual doc.
+- Hash comparisons are byte-exact: the pinned files carry `-text` in `.gitattributes` so no
+  platform EOL conversion can silently break a pin; the gate fails if a pinned path loses
+  its `-text` attribute.
 
 **Violation looks like.** A reworded statement under the same ID; a vanished requirement; a
 source-file edit with an unchanged register hash.
