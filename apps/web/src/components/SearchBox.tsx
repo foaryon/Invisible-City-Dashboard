@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { type GeocodeResult } from '@invisible-city/contracts';
 import { useAppStore } from '../state/store.js';
 import { api } from '../api.js';
+import { parseCoordinateInput, provisionalPlace, selectFromMapClick } from '../selection.js';
 
 /**
  * Place search. Photon (used server-side) is search-as-you-type capable; we
@@ -28,6 +29,16 @@ export function SearchBox() {
     }
     if (q === suppressRef.current) {
       suppressRef.current = null;
+      return;
+    }
+    // Direct coordinate input [MP-3.1.A-02]: offer the point synchronously —
+    // no geocoder round-trip; selection then follows the map-click flow.
+    const coords = parseCoordinateInput(q);
+    if (coords) {
+      setResults([{ place: provisionalPlace(coords), mode: 'mapped' }]);
+      setStatus('idle');
+      setOpen(true);
+      setActive(-1);
       return;
     }
     let cancelled = false;
@@ -60,7 +71,13 @@ export function SearchBox() {
   }, []);
 
   const choose = (r: GeocodeResult) => {
-    selectPlace(r.place);
+    if (r.place.id.startsWith('point:')) {
+      // Coordinate input selects exactly like a map click: provisional label
+      // immediately, reverse-geocode upgrade under the stale-response guard.
+      void selectFromMapClick(r.place.coordinates, (c) => api.reverse(c, demoMode));
+    } else {
+      selectPlace(r.place);
+    }
     suppressRef.current = r.place.label.trim();
     setQuery(r.place.label);
     setOpen(false);

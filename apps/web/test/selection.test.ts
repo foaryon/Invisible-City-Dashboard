@@ -11,7 +11,7 @@ import {
   type SelectedPlace,
 } from '@invisible-city/contracts';
 import { useAppStore } from '../src/state/store.js';
-import { selectFromMapClick, provisionalPlace } from '../src/selection.js';
+import { selectFromMapClick, provisionalPlace, parseCoordinateInput } from '../src/selection.js';
 
 const okEnvelope = (place: SelectedPlace): ModuleEnvelope<GeocodeResult[]> => ({
   status: 'ok',
@@ -121,5 +121,42 @@ describe('selectFromMapClick — stale-response guard', () => {
     const sel = useAppStore.getState().selectedPlace!;
     expect(sel.id).toBe(provisionalPlace(clicked).id);
     expect(sel.label).toContain('Punkt');
+  });
+});
+
+describe('parseCoordinateInput — direct coordinate search [MP-3.1.A-02]', () => {
+  it('parses dot-decimal pairs with comma, semicolon or space separators', () => {
+    expect(parseCoordinateInput('49.7596, 6.6439')).toEqual({
+      latitude: 49.7596,
+      longitude: 6.6439,
+    });
+    expect(parseCoordinateInput('52.52 13.405')).toEqual({ latitude: 52.52, longitude: 13.405 });
+    expect(parseCoordinateInput('50.938;6.96')).toEqual({ latitude: 50.938, longitude: 6.96 });
+  });
+
+  it('parses German comma-decimal pairs (semicolon/space separated, never bare comma)', () => {
+    expect(parseCoordinateInput('49,7596; 6,6439')).toEqual({
+      latitude: 49.7596,
+      longitude: 6.6439,
+    });
+    expect(parseCoordinateInput('49,7596 6,6439')).toEqual({
+      latitude: 49.7596,
+      longitude: 6.6439,
+    });
+  });
+
+  it('rejects out-of-Germany coordinates and non-coordinate text (falls back to text search)', () => {
+    expect(parseCoordinateInput('40.0, 3.0')).toBeNull(); // Madrid-ish — outside DE bounds
+    expect(parseCoordinateInput('6.6439, 49.7596')).toBeNull(); // lon/lat swapped → out of bounds
+    expect(parseCoordinateInput('Trier')).toBeNull();
+    expect(parseCoordinateInput('49,7596')).toBeNull(); // single German decimal, ambiguous
+    expect(parseCoordinateInput('')).toBeNull();
+  });
+
+  it('boundary: accepts the corners of the Germany bounding box, rejects just beyond', () => {
+    expect(parseCoordinateInput('47.2, 5.8')).not.toBeNull();
+    expect(parseCoordinateInput('55.1, 15.1')).not.toBeNull();
+    expect(parseCoordinateInput('47.19, 5.8')).toBeNull();
+    expect(parseCoordinateInput('55.1, 15.11')).toBeNull();
   });
 });
